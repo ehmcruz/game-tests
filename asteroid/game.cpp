@@ -1,5 +1,6 @@
 #include <SDL.h>
 #include <assert.h>
+#include <stdlib.h>
 
 #define MAX_OBJS 1000
 #define SCREEN_W 800
@@ -13,7 +14,9 @@ int nobjs = 0;
 
 enum object_type_t {
 	OBJ_PLAYER,
-	OBJ_BULLET
+	OBJ_BULLET,
+	OBJ_ASTEROID,
+	OBJ_DESTROYED,
 };
 
 class object_t
@@ -43,6 +46,8 @@ public:
 object_t *objs[MAX_OBJS];
 object_t *player;
 
+unsigned short rand_buffer[3] = { 0, 1, 2 };
+
 inline int check_rect_horizontal_collision (object_t *left, object_t *right)
 {
 	return ((left->x + left->size) >= right->x);
@@ -71,6 +76,15 @@ int check_obj_collision (object_t *a, object_t *b)
 	}
 
 	return r;
+}
+
+void destroy_asteroid (object_t *asteroid)
+{
+	asteroid->type = OBJ_DESTROYED;
+	asteroid->r = 100;
+	asteroid->g = 100;
+	asteroid->b = 100;
+	asteroid->size = OBJ_SIZE / 10.0;
 }
 
 void init_objs_list ()
@@ -118,6 +132,25 @@ void render ()
 	SDL_RenderPresent(renderer);
 }
 
+void physics_check_collisions ()
+{
+	int i, j;
+	object_t *a, *b;
+
+	for (i=0; i<nobjs; i++) {
+		a = objs[i];
+
+		for (j=i+1; j<nobjs; j++) {
+			b = objs[j];
+
+			if (a->type == OBJ_BULLET && b->type == OBJ_ASTEROID && check_obj_collision(a, b))
+				destroy_asteroid(b);
+			else if (b->type == OBJ_BULLET && a->type == OBJ_ASTEROID && check_obj_collision(a, b))
+				destroy_asteroid(a);
+		}
+	}
+}
+
 void physics (double t)
 {
 	int i;
@@ -148,6 +181,23 @@ void physics (double t)
 			}
 		}
 	}
+
+	physics_check_collisions();
+}
+
+double get_random_x_pos ()
+{
+	return erand48(rand_buffer) * (double)SCREEN_W;
+}
+
+double get_random_y_pos ()
+{
+	return erand48(rand_buffer) * (double)SCREEN_H;
+}
+
+double get_random_speed ()
+{
+	return (erand48(rand_buffer) - erand48(rand_buffer)) * 200.0;
 }
 
 int main (int argc, char **argv)
@@ -205,6 +255,15 @@ int main (int argc, char **argv)
 							bullet->vx = 0;
 							bullet->vy = player->vy - 100.0;
 							add_obj(bullet);
+							break;
+						}
+						case SDLK_a: {
+							object_t *asteroid;
+							asteroid = new object_t(OBJ_ASTEROID, get_random_x_pos(), get_random_y_pos(), 0, 000, 200);
+							asteroid->size = OBJ_SIZE;
+							asteroid->vx = get_random_speed();
+							asteroid->vy = get_random_speed();
+							add_obj(asteroid);
 							break;
 						}
 					}
