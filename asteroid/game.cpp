@@ -1,6 +1,8 @@
 #include <SDL.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <stdio.h>
+#include <random>
 
 #define MAX_OBJS 1000
 #define SCREEN_W 800
@@ -46,7 +48,8 @@ public:
 object_t *objs[MAX_OBJS];
 object_t *player;
 
-unsigned short rand_buffer[3] = { 0, 1, 2 };
+std::default_random_engine rgenerator;
+std::uniform_real_distribution<double> rdistribution(0.0,1.0);
 
 inline int check_rect_horizontal_collision (object_t *left, object_t *right)
 {
@@ -187,17 +190,17 @@ void physics (double t)
 
 double get_random_x_pos ()
 {
-	return erand48(rand_buffer) * (double)SCREEN_W;
+	return rdistribution(rgenerator) * (double)SCREEN_W;
 }
 
 double get_random_y_pos ()
 {
-	return erand48(rand_buffer) * (double)SCREEN_H;
+	return rdistribution(rgenerator) * (double)SCREEN_H;
 }
 
 double get_random_speed ()
 {
-	return (erand48(rand_buffer) - erand48(rand_buffer)) * 200.0;
+	return (rdistribution(rgenerator) - rdistribution(rgenerator)) * 200.0;
 }
 
 int main (int argc, char **argv)
