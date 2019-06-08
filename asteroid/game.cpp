@@ -7,11 +7,15 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <random>
+#include <iostream>
+#include <chrono>
 
 #define MAX_OBJS 1000
 #define SCREEN_W 800
 #define SCREEN_H 600
 #define OBJ_SIZE 20.0
+
+using namespace std;
 
 SDL_Window *screen;
 SDL_Renderer *renderer;
@@ -211,7 +215,9 @@ int main (int argc, char **argv)
 {
 	int gogogo = 1;
 	SDL_Event event;
-	unsigned int tbegin, tend;
+	chrono::high_resolution_clock::time_point tbegin, tend;
+
+	cout << chrono::high_resolution_clock::period::den << endl;
 
 	SDL_Init(SDL_INIT_EVERYTHING);
 
@@ -230,7 +236,7 @@ int main (int argc, char **argv)
 	init_game();
 	
 	while (gogogo) {
-		tbegin = SDL_GetTicks();
+		tbegin = chrono::high_resolution_clock::now();
 
 		while (SDL_PollEvent(&event)) {
 		//SDL_WaitEvent(&event);
@@ -282,11 +288,13 @@ int main (int argc, char **argv)
 		render();
 
 		do {
-			tend = SDL_GetTicks();
+			tend = chrono::high_resolution_clock::now();
 		} while (tend <= tbegin);
 
-		printf("elapsed: %u\n", tend-tbegin);
-		physics((double)(tend-tbegin) / 1000.0);
+		chrono::duration<double> elapsed = chrono::duration_cast<chrono::duration<double>>(tend - tbegin);
+
+		cout << "elapsed: " << elapsed.count() << endl;
+		physics(elapsed.count());
 	}
 
 	SDL_Quit();
