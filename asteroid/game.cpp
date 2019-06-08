@@ -216,6 +216,7 @@ int main (int argc, char **argv)
 	int gogogo = 1;
 	SDL_Event event;
 	chrono::high_resolution_clock::time_point tbegin, tend;
+	const Uint8 *keyboard_state_array;
 
 	cout << chrono::high_resolution_clock::period::den << endl;
 
@@ -234,33 +235,43 @@ int main (int argc, char **argv)
 	SDL_RenderPresent(renderer);
 
 	init_game();
+
+	keyboard_state_array = SDL_GetKeyboardState(NULL);
 	
 	while (gogogo) {
+		double inc = 1.0;
+
 		tbegin = chrono::high_resolution_clock::now();
 
+		if (keyboard_state_array[SDL_SCANCODE_UP])
+			player->vy -= inc;
+		if (keyboard_state_array[SDL_SCANCODE_DOWN])
+			player->vy += inc;
+		if (keyboard_state_array[SDL_SCANCODE_LEFT])
+			player->vx -= inc;
+		if (keyboard_state_array[SDL_SCANCODE_RIGHT])
+			player->vx += inc;
+
 		while (SDL_PollEvent(&event)) {
-		//SDL_WaitEvent(&event);
 			switch (event.type) {
 				case SDL_QUIT:
 					gogogo = 0;
 					break;
 
 				case SDL_KEYDOWN: {
-					double inc = 5.0;
-
 					switch (event.key.keysym.sym) {
-						case SDLK_LEFT:
-							player->vx -= inc;
-							break;
-						case SDLK_RIGHT:
-							player->vx += inc;
-							break;
-						case SDLK_UP:
-							player->vy -= inc;
-							break;
-						case SDLK_DOWN:
-							player->vy += inc;
-							break;
+						// case SDLK_LEFT:
+						// 	player->vx -= inc;
+						// 	break;
+						// case SDLK_RIGHT:
+						// 	player->vx += inc;
+						// 	break;
+						// case SDLK_UP:
+						// 	player->vy -= inc;
+						// 	break;
+						// case SDLK_DOWN:
+						// 	player->vy += inc;
+						// 	break;
 						case SDLK_SPACE: {
 							object_t *bullet;
 							bullet = new object_t(OBJ_BULLET, player->x, player->y, 0, 200, 0);
