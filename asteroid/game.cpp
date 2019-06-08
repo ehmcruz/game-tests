@@ -1,3 +1,7 @@
+#ifdef __MINGW32__
+	#define SDL_MAIN_HANDLED
+#endif
+
 #include <SDL.h>
 #include <assert.h>
 #include <stdlib.h>
