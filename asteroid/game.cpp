@@ -15,7 +15,12 @@
 #define SCREEN_H 600
 #define OBJ_SIZE 20.0
 
+#define likely(x)       __builtin_expect((x),1)
+#define unlikely(x)     __builtin_expect((x),0)
+
 using namespace std;
+
+volatile int alive = 1;
 
 SDL_Window *screen;
 SDL_Renderer *renderer;
@@ -196,6 +201,35 @@ void physics (double t)
 	physics_check_collisions();
 }
 
+int physics_thread_handler (void* data)
+{
+	chrono::high_resolution_clock::time_point tbegin, tend;
+	double elapsed;
+	int i;
+
+	elapsed = 0.0;
+	i++;
+
+	while (1) {
+		tbegin = chrono::high_resolution_clock::now();
+
+		physics(elapsed);
+
+		do {
+			tend = chrono::high_resolution_clock::now();
+			chrono::duration<double> elapsed_ = chrono::duration_cast<chrono::duration<double>>(tend - tbegin);
+			elapsed = elapsed_.count();
+		} while (elapsed < 0.0001);
+
+		if (unlikely(i++ >= 1000)) {
+			i = 0;
+			cout << "elapsed: " << elapsed << endl;
+		}
+	}
+
+	return 0;
+}
+
 double get_random_x_pos ()
 {
 	return rdistribution(rgenerator) * (double)SCREEN_W;
@@ -213,10 +247,9 @@ double get_random_speed ()
 
 int main (int argc, char **argv)
 {
-	int gogogo = 1;
 	SDL_Event event;
-	chrono::high_resolution_clock::time_point tbegin, tend;
 	const Uint8 *keyboard_state_array;
+	SDL_Thread *physics_thread;
 
 	cout << chrono::high_resolution_clock::period::den << endl;
 
@@ -236,12 +269,18 @@ int main (int argc, char **argv)
 
 	init_game();
 
+	physics_thread = SDL_CreateThread(physics_thread_handler, "PhysicsThread", NULL);
+	
+	if (physics_thread == NULL) {
+		printf("SDL_CreateThread failed: %s\n", SDL_GetError());
+		SDL_Quit();
+		return 1;
+	}
+
 	keyboard_state_array = SDL_GetKeyboardState(NULL);
 	
-	while (gogogo) {
+	while (alive) {
 		double inc = 1.0;
-
-		tbegin = chrono::high_resolution_clock::now();
 
 		if (keyboard_state_array[SDL_SCANCODE_UP])
 			player->vy -= inc;
@@ -255,7 +294,7 @@ int main (int argc, char **argv)
 		while (SDL_PollEvent(&event)) {
 			switch (event.type) {
 				case SDL_QUIT:
-					gogogo = 0;
+					alive = 0;
 					break;
 
 				case SDL_KEYDOWN: {
@@ -297,15 +336,6 @@ int main (int argc, char **argv)
 		}
 
 		render();
-
-		do {
-			tend = chrono::high_resolution_clock::now();
-		} while (tend <= tbegin);
-
-		chrono::duration<double> elapsed = chrono::duration_cast<chrono::duration<double>>(tend - tbegin);
-
-		cout << "elapsed: " << elapsed.count() << endl;
-		physics(elapsed.count());
 	}
 
 	SDL_Quit();
