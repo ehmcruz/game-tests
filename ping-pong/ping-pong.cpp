@@ -20,10 +20,24 @@ SDL_Renderer *renderer;
 
 int alive = 1;
 
+SDL_Rect rect;
+
+static void render ()
+{
+	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+	SDL_RenderClear(renderer);
+
+	SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+	SDL_RenderFillRect(renderer, &rect);
+	SDL_RenderPresent(renderer);
+}
+
 int main (int argc, char **argv)
 {
 	SDL_Event event;
 	const Uint8 *keyboard_state_array;
+	chrono::high_resolution_clock::time_point tbegin, tend;
+	double elapsed;
 
 	cout << chrono::high_resolution_clock::period::den << endl;
 
@@ -43,16 +57,23 @@ int main (int argc, char **argv)
 	
 	keyboard_state_array = SDL_GetKeyboardState(NULL);
 	
-	SDL_Rect rect;
 	rect.x = 50;
 	rect.y = 100;
 	rect.w = 30;
 	rect.h = 30;
-	SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-	SDL_RenderFillRect(renderer, &rect);
-	SDL_RenderPresent(renderer);
 	
 	while (alive) {
+		tbegin = chrono::high_resolution_clock::now();
+		
+		if (keyboard_state_array[SDL_SCANCODE_UP])
+			rect.y--;
+		if (keyboard_state_array[SDL_SCANCODE_DOWN])
+			rect.y++;
+		if (keyboard_state_array[SDL_SCANCODE_LEFT])
+			rect.x--;
+		if (keyboard_state_array[SDL_SCANCODE_RIGHT])
+			rect.x++;
+			
 		while (SDL_PollEvent(&event)) {
 			switch (event.type) {
 				case SDL_QUIT:
@@ -71,6 +92,14 @@ int main (int argc, char **argv)
 				
 			}
 		}
+		
+		do {
+			tend = chrono::high_resolution_clock::now();
+			chrono::duration<double> elapsed_ = chrono::duration_cast<chrono::duration<double>>(tend - tbegin);
+			elapsed = elapsed_.count();
+		} while (elapsed < 0.01);
+		
+		render();
 	}
 
 	SDL_Quit();
