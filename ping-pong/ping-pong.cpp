@@ -14,22 +14,87 @@ using namespace std;
 
 #define SCREEN_W 800
 #define SCREEN_H 600
+#define MAX_OBJS 1000
+
+struct point_t {
+	double x, y;
+};
+
+typedef point_t vector_t;
+
+class obj_t
+{
+public:
+	point_t pos;
+	vector_t speed;
+	double w, h;
+};
 
 SDL_Window *screen;
 SDL_Renderer *renderer;
 
-int alive = 1;
+obj_t *objs[MAX_OBJS];
+int nobjs = 0;
 
-SDL_Rect rect;
+obj_t *player;
+
+int alive = 1;
 
 static void render ()
 {
+	int i;
+	obj_t *o;
+	SDL_Rect rect;
+
 	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
 	SDL_RenderClear(renderer);
 
-	SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-	SDL_RenderFillRect(renderer, &rect);
+	for (i=0; i<nobjs; i++) {
+		o = objs[i];
+		
+		rect.x = o->pos.x;
+		rect.y = o->pos.y;
+		rect.w = o->w;
+		rect.h = o->h;
+
+		SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+		SDL_RenderFillRect(renderer, &rect);
+	}
+
 	SDL_RenderPresent(renderer);
+}
+
+static void physics (double t)
+{
+	int i;
+	obj_t *o;
+	
+	for (i=0; i<nobjs; i++) {
+		o = objs[i];
+		
+		o->pos.x += o->speed.x * t;
+		o->pos.y += o->speed.y * t;
+	}
+}
+
+static void add_obj (obj_t *o)
+{
+	assert(nobjs < MAX_OBJS);
+	
+	objs[ nobjs++ ] = o;
+}
+
+static void init_game ()
+{
+	player = new obj_t();
+	player->pos.x = SCREEN_W / 2;
+	player->pos.y = SCREEN_H / 2;
+	player->speed.x = 0.0;
+	player->speed.y = 0.0;
+	player->w = 30.0;
+	player->h = 30.0;
+	
+	add_obj(player);
 }
 
 int main (int argc, char **argv)
@@ -50,29 +115,28 @@ int main (int argc, char **argv)
 		SDL_WINDOW_OPENGL);
 
 	renderer = SDL_CreateRenderer(screen, -1, 0);
+	
+	init_game();
 
 	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
 	SDL_RenderClear(renderer);
 	SDL_RenderPresent(renderer);
 	
 	keyboard_state_array = SDL_GetKeyboardState(NULL);
-	
-	rect.x = 50;
-	rect.y = 100;
-	rect.w = 30;
-	rect.h = 30;
-	
+		
 	while (alive) {
 		tbegin = chrono::high_resolution_clock::now();
 		
+		#define inc 0.5
+		
 		if (keyboard_state_array[SDL_SCANCODE_UP])
-			rect.y--;
+			player->speed.y -= inc;
 		if (keyboard_state_array[SDL_SCANCODE_DOWN])
-			rect.y++;
+			player->speed.y += inc;
 		if (keyboard_state_array[SDL_SCANCODE_LEFT])
-			rect.x--;
+			player->speed.x -= inc;
 		if (keyboard_state_array[SDL_SCANCODE_RIGHT])
-			rect.x++;
+			player->speed.x += inc;
 			
 		while (SDL_PollEvent(&event)) {
 			switch (event.type) {
@@ -99,6 +163,7 @@ int main (int argc, char **argv)
 			elapsed = elapsed_.count();
 		} while (elapsed < 0.01);
 		
+		physics(elapsed);
 		render();
 	}
 
