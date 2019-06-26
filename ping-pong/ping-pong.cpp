@@ -64,6 +64,27 @@ static void render ()
 	SDL_RenderPresent(renderer);
 }
 
+static void check_collision_boundaries (obj_t *o)
+{
+	if (o->pos.x < 0.0) {
+		o->pos.x = 0.0;
+		o->speed.x *= -1.0;
+	}
+	else if ((o->pos.x + o->w) > (double)SCREEN_W) {
+		o->pos.x = (double)SCREEN_W - o->w;
+		o->speed.x *= -1.0;
+	}
+	
+	if (o->pos.y < 0.0) {
+		o->pos.y = 0.0;
+		o->speed.y *= -1.0;
+	}
+	else if ((o->pos.y + o->h) > (double)SCREEN_H) {
+		o->pos.y = (double)SCREEN_H - o->h;
+		o->speed.y *= -1.0;
+	}
+}
+
 static void physics (double t)
 {
 	int i;
@@ -74,6 +95,8 @@ static void physics (double t)
 		
 		o->pos.x += o->speed.x * t;
 		o->pos.y += o->speed.y * t;
+		
+		check_collision_boundaries(o);
 	}
 }
 
