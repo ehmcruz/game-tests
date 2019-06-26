@@ -30,8 +30,16 @@ public:
 	double w, h;
 };
 
+struct audio_t {
+	SDL_AudioSpec wavSpec;
+	Uint32 wavLength;
+	Uint8 *wavBuffer;
+	SDL_AudioDeviceID deviceId;
+};
+
 SDL_Window *screen;
 SDL_Renderer *renderer;
+audio_t audio_pong;
 
 obj_t *objs[MAX_OBJS];
 int nobjs = 0;
@@ -39,6 +47,26 @@ int nobjs = 0;
 obj_t *player;
 
 int alive = 1;
+
+static void load_audio (audio_t *audio, char *fname)
+{
+	SDL_LoadWAV(fname, &audio->wavSpec, &audio->wavBuffer, &audio->wavLength);
+	audio->deviceId = SDL_OpenAudioDevice(NULL, 0, &audio->wavSpec, NULL, 0);
+}
+
+static void destroy_audio (audio_t *audio)
+{
+	SDL_CloseAudioDevice(audio->deviceId);
+	SDL_FreeWAV(audio->wavBuffer);
+}
+
+static void play_audio (audio_t *audio)
+{
+	int success;
+	
+	success = SDL_QueueAudio(audio->deviceId, audio->wavBuffer, audio->wavLength);
+	SDL_PauseAudioDevice(audio->deviceId, 0);
+}
 
 static void render ()
 {
@@ -69,19 +97,23 @@ static void check_collision_boundaries (obj_t *o)
 	if (o->pos.x < 0.0) {
 		o->pos.x = 0.0;
 		o->speed.x *= -1.0;
+		play_audio(&audio_pong);
 	}
 	else if ((o->pos.x + o->w) > (double)SCREEN_W) {
 		o->pos.x = (double)SCREEN_W - o->w;
 		o->speed.x *= -1.0;
+		play_audio(&audio_pong);
 	}
 	
 	if (o->pos.y < 0.0) {
 		o->pos.y = 0.0;
 		o->speed.y *= -1.0;
+		play_audio(&audio_pong);
 	}
 	else if ((o->pos.y + o->h) > (double)SCREEN_H) {
 		o->pos.y = (double)SCREEN_H - o->h;
 		o->speed.y *= -1.0;
+		play_audio(&audio_pong);
 	}
 }
 
@@ -139,6 +171,8 @@ int main (int argc, char **argv)
 
 	renderer = SDL_CreateRenderer(screen, -1, 0);
 	
+	load_audio(&audio_pong, "pong.wav");
+	
 	init_game();
 
 	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
@@ -190,6 +224,7 @@ int main (int argc, char **argv)
 		render();
 	}
 
+	destroy_audio(&audio_pong);
 	SDL_Quit();
 	
 	return 0;
