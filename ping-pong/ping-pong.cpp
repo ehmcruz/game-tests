@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <math.h>
 #include <random>
 #include <iostream>
 #include <chrono>
@@ -17,18 +18,26 @@ using namespace std;
 #define MAX_OBJS 1000
 
 #define BALL_W     15.0
+#define BALL_H     BALL_W
 #define RACKET_W   70.0
 #define RACKET_H   5.0
 
-#define FIRST_STRIKE_SPEED_Y    300.0
+#define FIRST_STRIKE_SPEED_Y    200.0
 
 #define BALL_ENERGY_DROP        0.1
+
+#define MAX_BALL_SPEED_Y        500.0
 
 struct point_t {
 	double x, y;
 };
 
 typedef point_t vector_t;
+
+enum obj_type_t {
+	OBJ_BALL,
+	OBJ_RACKET
+};
 
 class obj_t
 {
@@ -37,6 +46,7 @@ public:
 	vector_t speed;
 	double w, h;
 	Uint8 r, g, b;
+	obj_type_t type;
 };
 
 struct audio_t {
@@ -139,6 +149,64 @@ static void obj_lose_kinect_energy (obj_t *o, double t)
 	o->speed.y *= to_keep;
 }
 
+static int check_objs_collision (obj_t *o1, obj_t *o2)
+{
+	return ((fabs((o1->pos.x+o1->w/2.0) - (o2->pos.x+o2->w/2.0)) < ((o1->w + o2->w) / 2.0)) &&
+		(fabs((o1->pos.y+o1->h/2.0) - (o2->pos.y+o2->h/2.0)) < ((o1->h + o2->h) / 2.0)));
+}
+
+static void ball_strike (obj_t *racket, obj_t *ball)
+{
+	double vx;
+	
+	cout << "bateu na bolinha" << endl;
+	
+	vx = (racket->pos.x + racket->w/2.0) - (ball->pos.x + ball->w/2.0);
+	
+	ball->speed.x -= vx;
+	ball->speed.y *= -1.0;
+		
+	if (ball->speed.y > 0.0) {
+		ball->pos.y = RACKET_H+5.0;
+		ball->speed.y += FIRST_STRIKE_SPEED_Y;
+	}
+	else if (ball->speed.y < 0.0) {
+		ball->pos.y = SCREEN_H-RACKET_H-BALL_H-5.0;
+		ball->speed.y -= FIRST_STRIKE_SPEED_Y;
+	}
+}
+
+static void check_collisions ()
+{
+	int i, j;
+	obj_t *o1, *o2;
+	
+	for (i=0; i<nobjs-1; i++) {
+		o1 = objs[i];
+		
+		for (j=i+1; j<nobjs; j++) {
+			o2 = objs[j];
+			
+			if (check_objs_collision(o1, o2)) {
+				if (o1->type == OBJ_BALL && o2->type == OBJ_RACKET)
+					ball_strike(o2, o1);
+				else if (o2->type == OBJ_BALL && o1->type == OBJ_RACKET)
+					ball_strike(o1, o2);
+				else
+					assert(0);
+			}
+		}
+	}
+}
+
+static void limit_ball_speed()
+{
+	if (ball->speed.y > MAX_BALL_SPEED_Y)
+		ball->speed.y = MAX_BALL_SPEED_Y;
+	else if (ball->speed.y < -MAX_BALL_SPEED_Y)
+		ball->speed.y = -MAX_BALL_SPEED_Y;
+}
+
 static void physics (double t)
 {
 	int i;
@@ -153,6 +221,14 @@ static void physics (double t)
 		obj_lose_kinect_energy(o, t);
 		check_collision_boundaries(o);
 	}
+	
+	check_collisions();
+	limit_ball_speed();
+}
+
+static void run_forrest (double t)
+{
+	forrest->pos.x = ball->pos.x;
 }
 
 static void add_obj (obj_t *o)
@@ -174,6 +250,7 @@ static void init_game ()
 	ball->r = 255;
 	ball->g = 0;
 	ball->b = 0;
+	ball->type = OBJ_BALL;
 	
 	add_obj(ball);
 	
@@ -187,6 +264,7 @@ static void init_game ()
 	player->r = 0;
 	player->g = 255;
 	player->b = 0;
+	player->type = OBJ_RACKET;
 	
 	add_obj(player);
 	
@@ -200,6 +278,7 @@ static void init_game ()
 	forrest->r = 0;
 	forrest->g = 255;
 	forrest->b = 0;
+	forrest->type = OBJ_RACKET;
 	
 	add_obj(forrest);
 }
@@ -260,8 +339,8 @@ int main (int argc, char **argv)
 					switch (event.key.keysym.sym) {
 						case SDLK_SPACE: {
 							ball->pos.x = player->pos.x;
-							ball->pos.y = player->pos.y;
-							ball->speed.y = FIRST_STRIKE_SPEED_Y;
+							ball->pos.y = player->pos.y - ball->h - 5.0;
+							ball->speed.y = -FIRST_STRIKE_SPEED_Y;
 							cout << "espaço apertado" << endl;
 							break;
 						}
@@ -271,6 +350,8 @@ int main (int argc, char **argv)
 				
 			}
 		}
+		
+		run_forrest(elapsed);
 		
 		do {
 			tend = chrono::high_resolution_clock::now();
