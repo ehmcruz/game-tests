@@ -263,7 +263,7 @@ int main (int argc, char **argv)
 	SDL_Event event;
 	const Uint8 *keyboard_state_array;
 	chrono::high_resolution_clock::time_point tbegin, tend;
-	float elapsed;
+	float elapsed, target_fps, target_elapsed, fps;
 
 	cout << chrono::high_resolution_clock::period::den << endl;
 
@@ -276,6 +276,9 @@ int main (int argc, char **argv)
 		SDL_WINDOW_OPENGL);
 
 	renderer = SDL_CreateRenderer(screen, -1, 0);
+
+	target_fps = 60.0f;
+	target_elapsed = 1.0f / target_fps;
 		
 	init_game();
 
@@ -316,7 +319,7 @@ int main (int argc, char **argv)
 					switch (event.key.keysym.sym) {
 						case SDLK_SPACE: {
 							ball->body->SetTransform( b2Vec2(player->body->GetPosition().x, SCREEN_H-100), 0.0f );
-							ball->body->SetLinearVelocity( b2Vec2(0.0f, -100.0f) );
+							ball->body->SetLinearVelocity( b2Vec2(0.0f, -200.0f) );
 							printf("ballv.y = %.4f\n", ball->body->GetLinearVelocity().y);
 							//exit(1);
 							cout << "espaço apertado" << endl;
@@ -329,14 +332,16 @@ int main (int argc, char **argv)
 			}
 		}
 
-		printf("frame ellapsed = %.4fs\nballv.y = %.4f\n", elapsed, ball->body->GetLinearVelocity().y);
+		fps = 1.0f / elapsed;
+
+		printf("frame ellapsed = %.4fs (%.1f fps)\nballv.y = %.4f\n", elapsed, fps, ball->body->GetLinearVelocity().y);
 		
 		run_forrest(elapsed);
 //elapsed = 0.01f;
 //		physics(elapsed);
-		int32_t velocityIterations = 10;
-		int32_t positionIterations = 5;
-		world->Step(elapsed, velocityIterations, positionIterations);
+		int32_t velocityIterations = 6;
+		int32_t positionIterations = 2;
+		world->Step(target_elapsed, velocityIterations, positionIterations);
 		render();
 
 		//printf("new frame elapsed = %.4f\n", elapsed);
@@ -345,7 +350,7 @@ int main (int argc, char **argv)
 			tend = chrono::high_resolution_clock::now();
 			chrono::duration<float> elapsed_ = chrono::duration_cast<chrono::duration<float>>(tend - tbegin);
 			elapsed = elapsed_.count();
-		} while (elapsed < 0.01f);
+		} while (elapsed < target_elapsed);
 	}
 
 	SDL_Quit();
