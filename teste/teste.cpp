@@ -15,16 +15,14 @@
 
 using namespace std;
 
-#define SCREEN_W 800
-#define SCREEN_H 600
 #define MAX_OBJS 1000
 
-#define BALL_W     15.0
+#define BALL_W     0.1f
 #define BALL_H     BALL_W
-#define RACKET_W   70.0
-#define RACKET_H   30.0
+#define RACKET_W   0.2f
+#define RACKET_H   0.05f
 
-#define FIRST_STRIKE_SPEED_Y    400.0f
+#define FIRST_STRIKE_SPEED_Y    2.0f
 
 #define BALL_ENERGY_DROP        0.1f
 
@@ -39,7 +37,7 @@ class obj_t
 {
 public:
 	b2Body *body;
-	int w, h;
+	float w, h;
 	Uint8 r, g, b;
 	obj_type_t type;
 
@@ -49,6 +47,12 @@ public:
 		return f;
 	}
 };
+
+float screen_w = 2.0f;
+float screen_h = 4.0f;
+
+int32_t screen_w_px;
+int32_t screen_h_px;
 
 SDL_Window *screen;
 SDL_Renderer *renderer;
@@ -61,6 +65,13 @@ obj_t *forrest;
 obj_t *ball;
 
 int alive = 1;
+
+float convert_factor_meter_pixel = 200.0f;
+
+inline int32_t meters_to_pixels (float p)
+{
+	return static_cast<int32_t>(p * convert_factor_meter_pixel);
+}
 
 class MyContactListener : public b2ContactListener
 {
@@ -93,9 +104,9 @@ class MyContactListener : public b2ContactListener
 		}
 		
 		if (racket == player && ballv.y > 0.0f) {
-			b2Vec2 new_ballv = ballv;
-			new_ballv.y = ballv.y * -1.0f;
-			ball->body->SetLinearVelocity(new_ballv);
+			//b2Vec2 new_ballv = ballv;
+			//new_ballv.y = ballv.y * -1.0f;
+			//ball->body->SetLinearVelocity(new_ballv);
 			printf("zz\n");
 		}
 	}
@@ -132,10 +143,12 @@ static void render ()
 		b2Shape *shape = f->GetShape();
 		b2PolygonShape *s = static_cast<b2PolygonShape*>(shape);
 		
-		rect.x = o->body->GetPosition().x - o->w/2;
-		rect.y = o->body->GetPosition().y - o->h/2;
-		rect.w = o->w;
-		rect.h = o->h;
+		rect.x = meters_to_pixels( o->body->GetPosition().x - o->w/2.0f );
+		rect.y = meters_to_pixels( o->body->GetPosition().y - o->h/2.0f );
+		rect.w = meters_to_pixels( o->w );
+		rect.h = meters_to_pixels( o->h );
+
+		//printf("x=%i y=%i w=%i h=%i\n", rect.x, rect.y, rect.w, rect.h);
 
 		SDL_SetRenderDrawColor(renderer, o->r, o->g, o->b, 255);
 		SDL_RenderFillRect(renderer, &rect);
@@ -144,9 +157,9 @@ static void render ()
 	SDL_RenderPresent(renderer);
 }
 
-static void run_forrest (double t)
+static void run_forrest (float t)
 {
-	//forrest->pos.x = ball->pos.x;
+	forrest->body->SetTransform( b2Vec2(ball->body->GetPosition().x, forrest->body->GetPosition().y), 0.0f );
 }
 
 static void add_obj (obj_t *o)
@@ -168,13 +181,13 @@ static void init_game ()
 
 		b2BodyDef bodyDef;
 		bodyDef.type = b2_dynamicBody;
-		bodyDef.position.Set(SCREEN_W / 2, SCREEN_H / 2);
+		bodyDef.position.Set(screen_w / 2.0f, screen_h / 2.0f);
 		bodyDef.userData.pointer = (uintptr_t)ball;
 
 		ball->body = world->CreateBody(&bodyDef);
 
 		b2PolygonShape dynamicBox;
-		dynamicBox.SetAsBox(BALL_W / 2, BALL_H / 2);
+		dynamicBox.SetAsBox(BALL_W / 2.0f, BALL_H / 2.0f);
 
 		b2FixtureDef fixtureDef;
 		fixtureDef.shape = &dynamicBox;
@@ -198,18 +211,19 @@ static void init_game ()
 
 		b2BodyDef bodyDef;
 		bodyDef.type = b2_kinematicBody;
-		bodyDef.position.Set(SCREEN_W / 2, SCREEN_H - RACKET_H / 2);
+		bodyDef.position.Set(screen_w / 2.0f, screen_h - RACKET_H / 2.0f);
 		bodyDef.userData.pointer = (uintptr_t)player;
 
 		player->body = world->CreateBody(&bodyDef);
 
 		b2PolygonShape dynamicBox;
-		dynamicBox.SetAsBox(RACKET_W / 2, RACKET_H / 2);
+		dynamicBox.SetAsBox(RACKET_W / 2.0f, RACKET_H / 2.0f);
 
 		b2FixtureDef fixtureDef;
 		fixtureDef.shape = &dynamicBox;
 		fixtureDef.density = 1.0f;
 		fixtureDef.friction = 0.0f;
+		fixtureDef.restitution = 1.0f;
 
 		player->body->CreateFixture(&fixtureDef);
 
@@ -231,18 +245,19 @@ static void init_game ()
 
 		b2BodyDef bodyDef;
 		bodyDef.type = b2_kinematicBody;
-		bodyDef.position.Set(SCREEN_W / 2, RACKET_H / 2);
+		bodyDef.position.Set(screen_w / 2.0f, RACKET_H / 2.0f);
 		bodyDef.userData.pointer = (uintptr_t)forrest;
 
 		forrest->body = world->CreateBody(&bodyDef);
 
 		b2PolygonShape dynamicBox;
-		dynamicBox.SetAsBox(RACKET_W / 2, RACKET_H / 2);
+		dynamicBox.SetAsBox(RACKET_W / 2.0f, RACKET_H / 2.0f);
 
 		b2FixtureDef fixtureDef;
 		fixtureDef.shape = &dynamicBox;
 		fixtureDef.density = 1.0f;
 		fixtureDef.friction = 0.0f;
+		fixtureDef.isSensor = true;
 
 		forrest->body->CreateFixture(&fixtureDef);
 
@@ -269,10 +284,16 @@ int main (int argc, char **argv)
 
 	SDL_Init(SDL_INIT_EVERYTHING);
 
+	screen_w_px = meters_to_pixels(screen_w);
+	screen_h_px = meters_to_pixels(screen_h);
+
+	printf("scree size %ix%ipx\n", screen_w_px, screen_h_px);
+	//exit(0);
+
 	screen = SDL_CreateWindow("My Game Window",
 		SDL_WINDOWPOS_UNDEFINED,
 		SDL_WINDOWPOS_UNDEFINED,
-		SCREEN_W, SCREEN_H,
+		screen_w_px, screen_h_px,
 		SDL_WINDOW_OPENGL);
 
 	renderer = SDL_CreateRenderer(screen, -1, 0);
@@ -293,14 +314,14 @@ int main (int argc, char **argv)
 	while (alive) {
 		tbegin = chrono::high_resolution_clock::now();
 		
-		#define inc 200.0f
+		#define inc 0.5f
 
 		b2Vec2 speed_player(0.0f, 0.0f);
 		
-		if (keyboard_state_array[SDL_SCANCODE_UP])
+		/*if (keyboard_state_array[SDL_SCANCODE_UP])
 			speed_player.y = -inc;
 		else if (keyboard_state_array[SDL_SCANCODE_DOWN])
-			speed_player.y = inc;
+			speed_player.y = inc;*/
 
 		if (keyboard_state_array[SDL_SCANCODE_LEFT])
 			speed_player.x = -inc;
@@ -318,9 +339,9 @@ int main (int argc, char **argv)
 				case SDL_KEYDOWN: {
 					switch (event.key.keysym.sym) {
 						case SDLK_SPACE: {
-							ball->body->SetTransform( b2Vec2(player->body->GetPosition().x, SCREEN_H-100), 0.0f );
-							ball->body->SetLinearVelocity( b2Vec2(0.0f, -200.0f) );
-							printf("ballv.y = %.4f\n", ball->body->GetLinearVelocity().y);
+							ball->body->SetTransform( b2Vec2(player->body->GetPosition().x, 1.5), 0.0f );
+							ball->body->SetLinearVelocity( b2Vec2(0.0f, -FIRST_STRIKE_SPEED_Y) );
+//							printf("ballv.y = %.4f\n", ball->body->GetLinearVelocity().y);
 							//exit(1);
 							cout << "espaço apertado" << endl;
 							break;
@@ -334,9 +355,9 @@ int main (int argc, char **argv)
 
 		fps = 1.0f / elapsed;
 
-		printf("frame ellapsed = %.4fs (%.1f fps)\nballv.y = %.4f\n", elapsed, fps, ball->body->GetLinearVelocity().y);
+		printf("frame elapsed = %.4fs (%.1f fps)\nballv.y = %.4f\n", elapsed, fps, ball->body->GetLinearVelocity().y);
 		
-		run_forrest(elapsed);
+		run_forrest(target_elapsed);
 //elapsed = 0.01f;
 //		physics(elapsed);
 		int32_t velocityIterations = 6;
