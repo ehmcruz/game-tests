@@ -24,9 +24,9 @@ using namespace std;
 #define RACKET_W   70.0
 #define RACKET_H   30.0
 
-#define FIRST_STRIKE_SPEED_Y    400.0
+#define FIRST_STRIKE_SPEED_Y    400.0f
 
-#define BALL_ENERGY_DROP        0.1
+#define BALL_ENERGY_DROP        0.1f
 
 #define MAX_BALL_SPEED_Y        500.0
 
@@ -60,9 +60,6 @@ obj_t *player;
 obj_t *forrest;
 obj_t *ball;
 
-bool ball_collided_player = false;
-bool ball_collided_forrest = false;
-
 int alive = 1;
 
 class MyContactListener : public b2ContactListener
@@ -86,13 +83,19 @@ class MyContactListener : public b2ContactListener
 		ball->g = 255;
 		ball->b = 0;
 
-		if (racket == forrest) {
-			ball_collided_forrest = true;
+		b2Vec2 ballv = ball->body->GetLinearVelocity();
+
+		if (racket == forrest && ballv.y < 0.0f) {
+			b2Vec2 new_ballv = ballv;
+			new_ballv.y = ballv.y * -1.0f;
+			ball->body->SetLinearVelocity(new_ballv);
 			printf("yy\n");
 		}
 		
-		if (racket == player) {
-			ball_collided_player = true;
+		if (racket == player && ballv.y > 0.0f) {
+			b2Vec2 new_ballv = ballv;
+			new_ballv.y = ballv.y * -1.0f;
+			ball->body->SetLinearVelocity(new_ballv);
 			printf("zz\n");
 		}
 	}
@@ -107,28 +110,6 @@ class MyContactListener : public b2ContactListener
 		ball->r = 0;
 		ball->g = 0;
 		ball->b = 255;
-	}
-
-public:
-
-	void handle_collisions () {
-		if (ball_collided_forrest) {
-			ball_collided_forrest = false;
-			b2Vec2 ballv = ball->body->GetLinearVelocity();
-			b2Vec2 new_ballv = ballv;
-			new_ballv.y = -100.0f;
-			ball->body->SetLinearVelocity(new_ballv);
-			printf("yy2\n");
-		}
-
-		if (ball_collided_player) {
-			ball_collided_player = false;
-			b2Vec2 ballv = ball->body->GetLinearVelocity();
-			b2Vec2 new_ballv = ballv;
-			new_ballv.y = 100.0f;
-			ball->body->SetLinearVelocity(new_ballv);
-			printf("zz2\n");
-		}
 	}
 };
 
@@ -282,7 +263,7 @@ int main (int argc, char **argv)
 	SDL_Event event;
 	const Uint8 *keyboard_state_array;
 	chrono::high_resolution_clock::time_point tbegin, tend;
-	double elapsed;
+	float elapsed;
 
 	cout << chrono::high_resolution_clock::period::den << endl;
 
@@ -304,12 +285,12 @@ int main (int argc, char **argv)
 	
 	keyboard_state_array = SDL_GetKeyboardState(NULL);
 	
-	elapsed = 0.0;
-		
+	elapsed = 0.0f;
+	
 	while (alive) {
 		tbegin = chrono::high_resolution_clock::now();
 		
-		#define inc 200.0
+		#define inc 200.0f
 
 		b2Vec2 speed_player(0.0f, 0.0f);
 		
@@ -335,7 +316,9 @@ int main (int argc, char **argv)
 					switch (event.key.keysym.sym) {
 						case SDLK_SPACE: {
 							ball->body->SetTransform( b2Vec2(player->body->GetPosition().x, SCREEN_H-100), 0.0f );
-							ball->body->SetLinearVelocity( b2Vec2(0, -FIRST_STRIKE_SPEED_Y) );
+							ball->body->SetLinearVelocity( b2Vec2(0.0f, -100.0f) );
+							printf("ballv.y = %.4f\n", ball->body->GetLinearVelocity().y);
+							//exit(1);
 							cout << "espaço apertado" << endl;
 							break;
 						}
@@ -345,22 +328,24 @@ int main (int argc, char **argv)
 				
 			}
 		}
+
+		printf("frame ellapsed = %.4fs\nballv.y = %.4f\n", elapsed, ball->body->GetLinearVelocity().y);
 		
 		run_forrest(elapsed);
-		
-		do {
-			tend = chrono::high_resolution_clock::now();
-			chrono::duration<double> elapsed_ = chrono::duration_cast<chrono::duration<double>>(tend - tbegin);
-			elapsed = elapsed_.count();
-		} while (elapsed < 0.01);
-		
+//elapsed = 0.01f;
 //		physics(elapsed);
-		int32_t velocityIterations = 6;
-		int32_t positionIterations = 2;
+		int32_t velocityIterations = 10;
+		int32_t positionIterations = 5;
 		world->Step(elapsed, velocityIterations, positionIterations);
 		render();
 
-		myContactListenerInstance.handle_collisions();
+		//printf("new frame elapsed = %.4f\n", elapsed);
+
+		do {
+			tend = chrono::high_resolution_clock::now();
+			chrono::duration<float> elapsed_ = chrono::duration_cast<chrono::duration<float>>(tend - tbegin);
+			elapsed = elapsed_.count();
+		} while (elapsed < 0.01f);
 	}
 
 	SDL_Quit();
