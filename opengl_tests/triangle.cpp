@@ -211,8 +211,6 @@ int main( int argc, char **argv )
 	while (alive) {
 		tbegin = std::chrono::steady_clock::now();
 
-		glClear( GL_COLOR_BUFFER_BIT );
-
 		float disp = 100.0f * elapsed;
 
 		#define PI 3.1415f
@@ -261,9 +259,11 @@ int main( int argc, char **argv )
 			}
 		}
 
+		glClear( GL_COLOR_BUFFER_BIT );
+
 		glBufferData( GL_ARRAY_BUFFER, sizeof( g_vertex_buffer_data ), g_vertex_buffer_data, GL_DYNAMIC_DRAW );
 
-		glBindVertexArray( vao );
+		//glBindVertexArray( vao );
 		glDrawArrays( GL_TRIANGLES, 0, 3 );
 
 		SDL_GL_SwapWindow( window );
