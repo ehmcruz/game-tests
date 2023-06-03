@@ -246,16 +246,9 @@ int main( int argc, char **argv )
 
 	struct gl_vertex_t {
 		GLfloat tx_x; // texture x
-
-		// texture y
-		// remember that y=0 of texture is lower corner
-		// contrary to opengl coords, where y=0 is upper corner
-		GLfloat tx_y;
-		
+		GLfloat tx_y; // texture y		
 		GLfloat dummy; // just to have 8 elements in the struct
-
 		GLfloat alpha;
-
 		GLfloat x;
 		GLfloat y;
 		GLfloat offset_x;
@@ -272,14 +265,14 @@ int main( int argc, char **argv )
 	// lets put the vertices order clockwise
 
 	// first triangle
-	g_vertex_buffer_data[0] = {0.0f, 1.0f, 0.0f, 1.0f, -50.0f, -50.0f, 200.0f, 200.0f};
-	g_vertex_buffer_data[1] = {1.0f, 0.0f, 1.0f, 0.0f, 250.0f, 250.0f, 200.0f, 200.0f};
-	g_vertex_buffer_data[2] = {0.0f, 0.0f, 0.0f, 0.0f, -50.0f, 250.0f, 200.0f, 200.0f};
+	g_vertex_buffer_data[0] = {0.0f, 0.0f, 0.0f, 1.0f, -50.0f, -50.0f, 200.0f, 200.0f};
+	g_vertex_buffer_data[1] = {1.0f, 1.0f, 1.0f, 0.0f, 250.0f, 250.0f, 200.0f, 200.0f};
+	g_vertex_buffer_data[2] = {0.0f, 1.0f, 0.0f, 0.0f, -50.0f, 250.0f, 200.0f, 200.0f};
 	
 	// second triangle
-	g_vertex_buffer_data[3] = {0.0f, 1.0f, 0.0f, 1.0f, -50.0f, -50.0f, 200.0f, 200.0f};
-	g_vertex_buffer_data[4] = {1.0f, 1.0f, 0.0f, 1.0f, 250.0f, -50.0f, 200.0f, 200.0f};
-	g_vertex_buffer_data[5] = {1.0f, 0.0f, 1.0f, 0.0f, 250.0f, 250.0f, 200.0f, 200.0f};
+	g_vertex_buffer_data[3] = {0.0f, 0.0f, 0.0f, 1.0f, -50.0f, -50.0f, 200.0f, 200.0f};
+	g_vertex_buffer_data[4] = {1.0f, 0.0f, 0.0f, 1.0f, 250.0f, -50.0f, 200.0f, 200.0f};
+	g_vertex_buffer_data[5] = {1.0f, 1.0f, 1.0f, 0.0f, 250.0f, 250.0f, 200.0f, 200.0f};
 
 	std::cout << "check c size " << sizeof(g_vertex_buffer_data) << std::endl;
 
