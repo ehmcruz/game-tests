@@ -23,7 +23,7 @@ triangle: triangle.cpp
 texture: texture.cpp
 	echo `sdl2-config --cflags`
 	echo `sdl2-config --libs`
-	g++ -o texture.exe texture.cpp `sdl2-config --cflags` `sdl2-config --libs` -lSDL2_image -mconsole -lglew32 -lopengl32
+	g++ -o texture.exe texture.cpp `sdl2-config --cflags` `sdl2-config --libs` -lSDL2_image -mconsole -lglew32 -lopengl32 -ggdb
 
 mingw5:
 	g++ -o game game.cpp `sdl2-config --cflags --libs` -lglew32

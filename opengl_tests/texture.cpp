@@ -26,6 +26,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <assert.h>
+
 //#include <GL/glu.h>
 //#include <GL/gl.h>
 
@@ -49,21 +51,32 @@ static void init_sdl_image ()
 SDL_Surface* loadSurface (char *fname)
 {
 	//The final optimized image
-	SDL_Surface *optimizedSurface = nullptr;
+	//SDL_Surface *optimizedSurface = nullptr;
 
 	//Load image at specified path
 	SDL_Surface *loadedSurface = IMG_Load(fname);
+	assert(loadedSurface != nullptr);
 
 	if (loadedSurface == nullptr) {
 		printf( "Unable to load image %s! SDL_image Error: %s\n", fname, IMG_GetError() );
 		exit(1);
 	}
 
-	return loadedSurface;
+	printf("loaded %s w=%i h=%i\n", fname, loadedSurface->w, loadedSurface->h);
+
+	SDL_Surface *treatedSurface = SDL_CreateRGBSurface(0, loadedSurface->w, loadedSurface->h, 24, 0, 0, 0, 0);
+	assert(treatedSurface != nullptr);
+
+	SDL_BlitSurface(loadedSurface, 0, treatedSurface, 0); // Blit onto a purely RGB Surface
+
+	SDL_FreeSurface(loadedSurface);
+
+	return treatedSurface;
 	
 	// Convert surface to screen format
 	//optimizedSurface = SDL_ConvertSurface( loadedSurface, gScreenSurface->format, 0 );
 	
+/*
 	if(optimizedSurface == nullptr) {
 		printf( "Unable to optimize image %s! SDL Error: %s\n", fname, SDL_GetError() );
 		exit(1);
@@ -72,7 +85,7 @@ SDL_Surface* loadSurface (char *fname)
 	// Get rid of old loaded surface
 	SDL_FreeSurface( loadedSurface );
 
-	return optimizedSurface;
+	return optimizedSurface;*/
 }
 
 static inline void mat4x4_ortho(float *out, float left, float right, float bottom, float top, float znear, float zfar )
@@ -269,11 +282,12 @@ int main( int argc, char **argv )
 	g_vertex_buffer_data[5] = {1.0f, 0.0f, 1.0f, 0.0f, 250.0f, 250.0f, 200.0f, 200.0f};
 
 	std::cout << "check c size " << sizeof(g_vertex_buffer_data) << std::endl;
+
 	// ------------------------------------------
 
 	// texture load
 
-	unsigned int texture_id;
+	GLuint texture_id;
 
 	glActiveTexture(GL_TEXTURE0); // activate the texture unit first before binding texture
 
@@ -281,6 +295,10 @@ int main( int argc, char **argv )
 	glBindTexture(GL_TEXTURE_2D, texture_id);
 
 	SDL_Surface *figure = loadSurface((char*)"figure.png");
+	//SDL_SaveBMP(figure, "figure-test.bmp");
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, figure->w, figure->h, 0, GL_RGB, GL_UNSIGNED_BYTE, figure->pixels);
 	glGenerateMipmap(GL_TEXTURE_2D);
@@ -295,7 +313,7 @@ int main( int argc, char **argv )
 	glBufferData( GL_ARRAY_BUFFER, sizeof( g_vertex_buffer_data ), g_vertex_buffer_data, GL_DYNAMIC_DRAW );
 
 	float projection_matrix[4][4];
-	mat4x4_ortho( (float*)projection_matrix, 0.0f, (float)width, (float)height, 0.0f, 0.0f, 100.0f );
+	mat4x4_ortho( (float*)projection_matrix, 0.0f, (float)width, (float)height, 0.0f, 0.0f, 0.1f );
 	glUniformMatrix4fv( glGetUniformLocation( program, "u_projection_matrix" ), 1, GL_FALSE, (float*)projection_matrix );
 
 	elapsed = 0.0f;
@@ -309,26 +327,26 @@ int main( int argc, char **argv )
 		#define PI 3.1415f
 
 		if (keyboard_state_array[SDL_SCANCODE_UP]) {
-			for (int i=0; i<3; i++)
+			for (int i=0; i<6; i++)
 				g_vertex_buffer_data[i].offset_y -= disp;
 		}
 		if (keyboard_state_array[SDL_SCANCODE_DOWN]) {
-			for (int i=0; i<3; i++)
+			for (int i=0; i<6; i++)
 				g_vertex_buffer_data[i].offset_y += disp;
 		}
 		if (keyboard_state_array[SDL_SCANCODE_LEFT]) {
-			for (int i=0; i<3; i++)
+			for (int i=0; i<6; i++)
 				g_vertex_buffer_data[i].offset_x -= disp;
 		}
 		if (keyboard_state_array[SDL_SCANCODE_RIGHT]) {
-			for (int i=0; i<3; i++)
+			for (int i=0; i<6; i++)
 				g_vertex_buffer_data[i].offset_x += disp;
 		}
 		if (keyboard_state_array[SDL_SCANCODE_R]) {
 			rotate_by = PI / 100.0f;
 			float s = sin(rotate_by);
 			float c = cos(rotate_by);
-			for (int i=0; i<3; i++) {
+			for (int i=0; i<6; i++) {
 				g_vertex_buffer_data[i].x = g_vertex_buffer_data[i].x*c - g_vertex_buffer_data[i].y*s;
 				g_vertex_buffer_data[i].y = g_vertex_buffer_data[i].x*s + g_vertex_buffer_data[i].y*c;
 			}
@@ -337,7 +355,7 @@ int main( int argc, char **argv )
 			rotate_by = PI / -100.0f;
 			float s = sin(rotate_by);
 			float c = cos(rotate_by);
-			for (int i=0; i<3; i++) {
+			for (int i=0; i<6; i++) {
 				g_vertex_buffer_data[i].x = g_vertex_buffer_data[i].x*c - g_vertex_buffer_data[i].y*s;
 				g_vertex_buffer_data[i].y = g_vertex_buffer_data[i].x*s + g_vertex_buffer_data[i].y*c;
 			}
@@ -354,7 +372,7 @@ int main( int argc, char **argv )
 
 		glClear( GL_COLOR_BUFFER_BIT );
 
-		//glBufferData( GL_ARRAY_BUFFER, sizeof( g_vertex_buffer_data ), g_vertex_buffer_data, GL_DYNAMIC_DRAW );
+		glBufferData( GL_ARRAY_BUFFER, sizeof( g_vertex_buffer_data ), g_vertex_buffer_data, GL_DYNAMIC_DRAW );
 
 		//glBindVertexArray( vao );
 		glDrawArrays( GL_TRIANGLES, 0, 6 );
