@@ -64,47 +64,13 @@ SDL_Surface* loadSurface (char *fname)
 
 	printf("loaded %s w=%i h=%i\n", fname, loadedSurface->w, loadedSurface->h);
 
-	SDL_Surface *treatedSurface = SDL_CreateRGBSurface(0, loadedSurface->w, loadedSurface->h, 24, 0, 0, 0, 0);
-	assert(treatedSurface != nullptr);
+	Uint32 rmask = 0x000000ff;
+	Uint32 gmask = 0x0000ff00;
+	Uint32 bmask = 0x00ff0000;
+	Uint32 amask = 0xff000000;
 
-	SDL_BlitSurface(loadedSurface, 0, treatedSurface, 0); // Blit onto a purely RGB Surface
+	SDL_Surface *treatedSurface = SDL_CreateRGBSurface(0, loadedSurface->w, loadedSurface->h, 32, rmask, gmask, bmask, amask);
 
-	SDL_FreeSurface(loadedSurface);
-
-	return treatedSurface;
-	
-	// Convert surface to screen format
-	//optimizedSurface = SDL_ConvertSurface( loadedSurface, gScreenSurface->format, 0 );
-	
-/*
-	if(optimizedSurface == nullptr) {
-		printf( "Unable to optimize image %s! SDL Error: %s\n", fname, SDL_GetError() );
-		exit(1);
-	}
-
-	// Get rid of old loaded surface
-	SDL_FreeSurface( loadedSurface );
-
-	return optimizedSurface;*/
-}
-
-SDL_Surface* loadSurfaceBMP (char *fname)
-{
-	//The final optimized image
-	//SDL_Surface *optimizedSurface = nullptr;
-
-	//Load image at specified path
-	SDL_Surface *loadedSurface = SDL_LoadBMP(fname);
-	assert(loadedSurface != nullptr);
-
-	if (loadedSurface == nullptr) {
-		printf( "Unable to load image %s! SDL_image Error: %s\n", fname, IMG_GetError() );
-		exit(1);
-	}
-
-	printf("loaded %s w=%i h=%i\n", fname, loadedSurface->w, loadedSurface->h);
-
-	SDL_Surface *treatedSurface = SDL_CreateRGBSurface(0, loadedSurface->w, loadedSurface->h, 24, 0, 0, 0, 0);
 	assert(treatedSurface != nullptr);
 
 	SDL_BlitSurface(loadedSurface, 0, treatedSurface, 0); // Blit onto a purely RGB Surface
@@ -327,14 +293,13 @@ int main( int argc, char **argv )
 	glGenTextures(1, &texture_id);
 	glBindTexture(GL_TEXTURE_2D, texture_id);
 
-	//SDL_Surface *figure = loadSurface((char*)"figure.png");
-	SDL_Surface *figure = loadSurfaceBMP((char*)"figure.bmp");
+	SDL_Surface *figure = loadSurface((char*)"figure.png");
 	//SDL_SaveBMP(figure, "figure-test.bmp");
 
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, figure->w, figure->h, 0, GL_RGB, GL_UNSIGNED_BYTE, figure->pixels);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, figure->w, figure->h, 0, GL_RGBA, GL_UNSIGNED_BYTE, figure->pixels);
 	glGenerateMipmap(GL_TEXTURE_2D);
 
 	SDL_FreeSurface(figure);
@@ -404,7 +369,9 @@ int main( int argc, char **argv )
 			}
 		}
 
-		glClear( GL_COLOR_BUFFER_BIT );
+		//glClear( GL_COLOR_BUFFER_BIT );
+		glClearColor(0.0f, 0.0f, 0.0f, 1.0f );
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		glBufferData( GL_ARRAY_BUFFER, sizeof( g_vertex_buffer_data ), g_vertex_buffer_data, GL_DYNAMIC_DRAW );
 

@@ -64,7 +64,12 @@ SDL_Surface* loadSurface (char *fname)
 
 	printf("loaded %s w=%i h=%i\n", fname, loadedSurface->w, loadedSurface->h);
 
-	SDL_Surface *treatedSurface = SDL_CreateRGBSurface(0, loadedSurface->w, loadedSurface->h, 24, 0, 0, 0, 0);
+	Uint32 rmask = 0x000000ff;
+	Uint32 gmask = 0x0000ff00;
+	Uint32 bmask = 0x00ff0000;
+	Uint32 amask = 0xff000000;
+
+	SDL_Surface *treatedSurface = SDL_CreateRGBSurface(0, loadedSurface->w, loadedSurface->h, 32, rmask, gmask, bmask, amask);
 	assert(treatedSurface != nullptr);
 
 	SDL_BlitSurface(loadedSurface, 0, treatedSurface, 0); // Blit onto a purely RGB Surface
@@ -287,13 +292,13 @@ int main( int argc, char **argv )
 
 	// first triangle
 	g_vertex_buffer_data[6] = {0.0f, 0.0f, 1.0f, 1.0f, -50.0f, -50.0f, 400.0f, 400.0f};
-	g_vertex_buffer_data[7] = {1.0f, 1.0f, 1.0f, 0.0f, 250.0f, 250.0f, 400.0f, 400.0f};
-	g_vertex_buffer_data[8] = {0.0f, 1.0f, 1.0f, 0.0f, -50.0f, 250.0f, 400.0f, 400.0f};
+	g_vertex_buffer_data[7] = {3.0f, 3.0f, 1.0f, 0.0f, 250.0f, 250.0f, 400.0f, 400.0f};
+	g_vertex_buffer_data[8] = {0.0f, 3.0f, 1.0f, 0.0f, -50.0f, 250.0f, 400.0f, 400.0f};
 	
 	// second triangle
 	g_vertex_buffer_data[9] = {0.0f, 0.0f, 1.0f, 1.0f, -50.0f, -50.0f, 400.0f, 400.0f};
-	g_vertex_buffer_data[10] = {1.0f, 0.0f, 1.0f, 1.0f, 250.0f, -50.0f, 400.0f, 400.0f};
-	g_vertex_buffer_data[11] = {1.0f, 1.0f, 1.0f, 0.0f, 250.0f, 250.0f, 400.0f, 400.0f};
+	g_vertex_buffer_data[10] = {3.0f, 0.0f, 1.0f, 1.0f, 250.0f, -50.0f, 400.0f, 400.0f};
+	g_vertex_buffer_data[11] = {3.0f, 3.0f, 1.0f, 0.0f, 250.0f, 250.0f, 400.0f, 400.0f};
 
 	std::cout << "check c size " << sizeof(g_vertex_buffer_data) << std::endl;
 
@@ -319,11 +324,11 @@ int main( int argc, char **argv )
 	//glTextureStorage3D(texture_id, 1, GL_RGB, figure->w, figure->h, 1);
 
 	int layer_count = 2; // number of textures in the array
-	glTexStorage3D(GL_TEXTURE_2D_ARRAY, 1, GL_RGB8, figure1->w, figure1->h, layer_count);
+	glTexStorage3D(GL_TEXTURE_2D_ARRAY, 1, GL_RGBA8, figure1->w, figure1->h, layer_count);
 
 	int layer_id = 0;
-	glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, layer_id++, figure1->w, figure1->h, 1, GL_RGB, GL_UNSIGNED_BYTE, figure1->pixels);
-	glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, layer_id++, figure2->w, figure2->h, 1, GL_RGB, GL_UNSIGNED_BYTE, figure2->pixels);
+	glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, layer_id++, figure1->w, figure1->h, 1, GL_RGBA, GL_UNSIGNED_BYTE, figure1->pixels);
+	glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, layer_id++, figure2->w, figure2->h, 1, GL_RGBA, GL_UNSIGNED_BYTE, figure2->pixels);
 
 //	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_REPEAT);
 //	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_REPEAT);
