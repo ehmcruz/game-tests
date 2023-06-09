@@ -88,46 +88,6 @@ SDL_Surface* loadSurface (char *fname)
 	return optimizedSurface;*/
 }
 
-SDL_Surface* loadSurfaceBMP (char *fname)
-{
-	//The final optimized image
-	//SDL_Surface *optimizedSurface = nullptr;
-
-	//Load image at specified path
-	SDL_Surface *loadedSurface = SDL_LoadBMP(fname);
-	assert(loadedSurface != nullptr);
-
-	if (loadedSurface == nullptr) {
-		printf( "Unable to load image %s! SDL_image Error: %s\n", fname, IMG_GetError() );
-		exit(1);
-	}
-
-	printf("loaded %s w=%i h=%i\n", fname, loadedSurface->w, loadedSurface->h);
-
-	SDL_Surface *treatedSurface = SDL_CreateRGBSurface(0, loadedSurface->w, loadedSurface->h, 24, 0, 0, 0, 0);
-	assert(treatedSurface != nullptr);
-
-	SDL_BlitSurface(loadedSurface, 0, treatedSurface, 0); // Blit onto a purely RGB Surface
-
-	SDL_FreeSurface(loadedSurface);
-
-	return treatedSurface;
-	
-	// Convert surface to screen format
-	//optimizedSurface = SDL_ConvertSurface( loadedSurface, gScreenSurface->format, 0 );
-	
-/*
-	if(optimizedSurface == nullptr) {
-		printf( "Unable to optimize image %s! SDL Error: %s\n", fname, SDL_GetError() );
-		exit(1);
-	}
-
-	// Get rid of old loaded surface
-	SDL_FreeSurface( loadedSurface );
-
-	return optimizedSurface;*/
-}
-
 static inline void mat4x4_ortho(float *out, float left, float right, float bottom, float top, float znear, float zfar )
 {
 	#define T(a, b) (a * 4 + b)
@@ -159,10 +119,10 @@ static const char * vertex_shader =
 	"#version 330 core\n"
 
 	"in vec2 i_position;\n"
-	"in vec2 i_tx_pos;\n"
+	"in vec3 i_tx_pos;\n"
 	"in vec2 i_offset;\n"
 
-	"out vec2 v_tx_pos;\n"
+	"out vec3 v_tx_pos;\n"
 	
 	"uniform mat4 u_projection_matrix;\n"
 	
@@ -174,11 +134,11 @@ static const char * vertex_shader =
 static const char * fragment_shader =
 	"#version 330 core\n"
 	
-	"in vec2 v_tx_pos;\n"
+	"in vec3 v_tx_pos;\n"
 	
 	"out vec4 o_color;\n"
 
-	"uniform sampler2D u_tx_unit;\n"
+	"uniform sampler2DArray u_tx_unit;\n"
 	
 	"void main() {\n"
 	"    o_color = texture(u_tx_unit, v_tx_pos);\n"
@@ -255,6 +215,17 @@ int main( int argc, char **argv )
 	glGetShaderiv( fs, GL_COMPILE_STATUS, &status );
 	if( status == GL_FALSE ) {
 		std::cout << "fragment shader compilation failed" << std::endl;
+
+		GLint logSize = 0;
+		glGetShaderiv(fs, GL_INFO_LOG_LENGTH, &logSize);
+
+		char *berror = (char*)malloc(logSize);
+		assert(berror != nullptr);
+
+		glGetShaderInfoLog(fs, logSize, nullptr, berror);
+
+		printf("%s\n", berror);
+
 		return 1;
 	}
 
@@ -287,7 +258,7 @@ int main( int argc, char **argv )
 	struct gl_vertex_t {
 		GLfloat tx_x; // texture x
 		GLfloat tx_y; // texture y		
-		GLfloat dummy; // just to have 8 elements in the struct
+		GLfloat tx_id; // texture id inside texture array
 		GLfloat alpha;
 		GLfloat x;
 		GLfloat y;
@@ -296,23 +267,33 @@ int main( int argc, char **argv )
 	};
 
 	glVertexAttribPointer( attrib_position, 2, GL_FLOAT, GL_FALSE, sizeof(gl_vertex_t), ( void * )(4 * sizeof(float)) );
-	glVertexAttribPointer( attrib_tx_pos, 2, GL_FLOAT, GL_FALSE, sizeof(gl_vertex_t), 0 );
+	glVertexAttribPointer( attrib_tx_pos, 3, GL_FLOAT, GL_FALSE, sizeof(gl_vertex_t), 0 );
 	glVertexAttribPointer( attrib_offset, 2, GL_FLOAT, GL_FALSE, sizeof(gl_vertex_t), ( void * )(6 * sizeof(float)) );
 
 	// 2 triangles -> square
-	gl_vertex_t g_vertex_buffer_data[6];
+	gl_vertex_t g_vertex_buffer_data[12];
 
 	// lets put the vertices order clockwise
 
 	// first triangle
 	g_vertex_buffer_data[0] = {0.0f, 0.0f, 0.0f, 1.0f, -50.0f, -50.0f, 200.0f, 200.0f};
-	g_vertex_buffer_data[1] = {1.0f, 1.0f, 1.0f, 0.0f, 250.0f, 250.0f, 200.0f, 200.0f};
+	g_vertex_buffer_data[1] = {1.0f, 1.0f, 0.0f, 0.0f, 250.0f, 250.0f, 200.0f, 200.0f};
 	g_vertex_buffer_data[2] = {0.0f, 1.0f, 0.0f, 0.0f, -50.0f, 250.0f, 200.0f, 200.0f};
 	
 	// second triangle
 	g_vertex_buffer_data[3] = {0.0f, 0.0f, 0.0f, 1.0f, -50.0f, -50.0f, 200.0f, 200.0f};
 	g_vertex_buffer_data[4] = {1.0f, 0.0f, 0.0f, 1.0f, 250.0f, -50.0f, 200.0f, 200.0f};
-	g_vertex_buffer_data[5] = {1.0f, 1.0f, 1.0f, 0.0f, 250.0f, 250.0f, 200.0f, 200.0f};
+	g_vertex_buffer_data[5] = {1.0f, 1.0f, 0.0f, 0.0f, 250.0f, 250.0f, 200.0f, 200.0f};
+
+	// first triangle
+	g_vertex_buffer_data[6] = {0.0f, 0.0f, 1.0f, 1.0f, -50.0f, -50.0f, 400.0f, 400.0f};
+	g_vertex_buffer_data[7] = {1.0f, 1.0f, 1.0f, 0.0f, 250.0f, 250.0f, 400.0f, 400.0f};
+	g_vertex_buffer_data[8] = {0.0f, 1.0f, 1.0f, 0.0f, -50.0f, 250.0f, 400.0f, 400.0f};
+	
+	// second triangle
+	g_vertex_buffer_data[9] = {0.0f, 0.0f, 1.0f, 1.0f, -50.0f, -50.0f, 400.0f, 400.0f};
+	g_vertex_buffer_data[10] = {1.0f, 0.0f, 1.0f, 1.0f, 250.0f, -50.0f, 400.0f, 400.0f};
+	g_vertex_buffer_data[11] = {1.0f, 1.0f, 1.0f, 0.0f, 250.0f, 250.0f, 400.0f, 400.0f};
 
 	std::cout << "check c size " << sizeof(g_vertex_buffer_data) << std::endl;
 
@@ -325,19 +306,35 @@ int main( int argc, char **argv )
 	glActiveTexture(GL_TEXTURE0); // activate the texture unit first before binding texture
 
 	glGenTextures(1, &texture_id);
-	glBindTexture(GL_TEXTURE_2D, texture_id);
+	glBindTexture(GL_TEXTURE_2D_ARRAY, texture_id);
 
-	//SDL_Surface *figure = loadSurface((char*)"figure.png");
-	SDL_Surface *figure = loadSurfaceBMP((char*)"figure.bmp");
-	//SDL_SaveBMP(figure, "figure-test.bmp");
+	SDL_Surface *figure1 = loadSurface((char*)"grass.png");
+	SDL_Surface *figure2 = loadSurface((char*)"rock.png");
+	SDL_SaveBMP(figure1, "figure1-test.bmp");
+	SDL_SaveBMP(figure2, "figure2-test.bmp");
 
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, figure->w, figure->h, 0, GL_RGB, GL_UNSIGNED_BYTE, figure->pixels);
-	glGenerateMipmap(GL_TEXTURE_2D);
+	//glTextureStorage3D(texture_id, 1, GL_RGB, figure->w, figure->h, 1);
 
-	SDL_FreeSurface(figure);
+	int layer_count = 2; // number of textures in the array
+	glTexStorage3D(GL_TEXTURE_2D_ARRAY, 1, GL_RGB8, figure1->w, figure1->h, layer_count);
+
+	int layer_id = 0;
+	glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, layer_id++, figure1->w, figure1->h, 1, GL_RGB, GL_UNSIGNED_BYTE, figure1->pixels);
+	glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, layer_id++, figure2->w, figure2->h, 1, GL_RGB, GL_UNSIGNED_BYTE, figure2->pixels);
+
+//	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_REPEAT);
+//	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	//glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	//glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+	//glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, figure->w, figure->h, 0, GL_RGB, GL_UNSIGNED_BYTE, figure->pixels);
+	//glGenerateMipmap(GL_TEXTURE_2D);
+
+	SDL_FreeSurface(figure1);
+	SDL_FreeSurface(figure2);
 
 	GLint uniform_tx_unit_location = glGetUniformLocation(program, "u_tx_unit");
 	glUniform1i(uniform_tx_unit_location, 0); // set shader to use texture unit 0
@@ -404,12 +401,13 @@ int main( int argc, char **argv )
 			}
 		}
 
+		glClearColor(0.0f, 0.0f, 0.0f, 1.0f );
 		glClear( GL_COLOR_BUFFER_BIT );
 
 		glBufferData( GL_ARRAY_BUFFER, sizeof( g_vertex_buffer_data ), g_vertex_buffer_data, GL_DYNAMIC_DRAW );
 
 		//glBindVertexArray( vao );
-		glDrawArrays( GL_TRIANGLES, 0, 6 );
+		glDrawArrays( GL_TRIANGLES, 0, 12 );
 
 		SDL_GL_SwapWindow( window );
 
