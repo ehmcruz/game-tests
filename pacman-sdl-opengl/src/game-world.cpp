@@ -1,3 +1,5 @@
+#include <iostream>
+
 #include "game-world.h"
 
 game_main_t *game_main = nullptr;
@@ -69,9 +71,9 @@ game_world_t::~game_world_t ()
 
 int main (int argc, char **argv)
 {
-	game_world = new game_world_t;
+	game_main = new game_main_t;
 
-	game_world->run();
+	game_main->run();
 
 	return 0;
 }

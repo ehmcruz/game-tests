@@ -15,6 +15,8 @@
 #include "lib.h"
 #include "opengl.h"
 
+class game_world_t;
+
 class game_main_t
 {
 private:

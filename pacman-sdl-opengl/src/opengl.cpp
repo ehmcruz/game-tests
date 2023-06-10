@@ -1,3 +1,7 @@
+#include <iostream>
+#include <fstream>
+#include <sstream>
+
 #include <stdlib.h>
 
 #include "opengl.h"
@@ -19,7 +23,7 @@ void shader_t::compile ()
 	str_stream << t.rdbuf();
 	std::string buffer = str_stream.str();
 
-	dprint( "loaded shader (" << this->fname << "):" << sdl::endl )
+	dprint( "loaded shader (" << this->fname << "):" << std::endl )
 	dprint( buffer )
 
 	exit(0);
@@ -36,7 +40,7 @@ void shader_t::compile ()
 	}
 }
 
-opengl_program_t (shader_t *vs, shader_t *fs)
+opengl_program_t::opengl_program_t (shader_t *vs, shader_t *fs)
 {
 	this->vs = vs;
 	this->fs = fs;
