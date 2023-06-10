@@ -36,6 +36,13 @@ game_main_t::game_main_t ()
 
 	std::cout << "Status: Using GLEW " << glewGetString(GLEW_VERSION) << std::endl;
 
+	glDisable(GL_DEPTH_TEST);
+	glClearColor(0.0, 0.0, 0.0, 1.0);
+	glViewport(0, 0, this->screen_width_px, this->screen_height_px);
+
+	this->opengl_circle_factory_low_def = new opengl_circle_factory_t(CONFIG_OPENGL_LOW_DEF_CIRCLES_TRIANGLES);
+	this->opengl_circle_factory_high_def = new opengl_circle_factory_t(CONFIG_OPENGL_HIGH_DEF_CIRCLES_TRIANGLES);
+
 	this->game_world = nullptr;
 	this->game_world = new game_world_t;
 }
@@ -55,18 +62,31 @@ game_world_t::game_world_t ()
 	this->screen_width = 16.0f;
 	this->screen_height = 16.0f;
 
-	shader_t *vs = new shader_t(GL_VERTEX_SHADER, "shaders/triangles.vert");
-	vs->compile();
+	this->opengl_program_triangle = new opengl_program_triangle_t;
+	this->opengl_program_triangle->use_program();
 
-	shader_t *fs = new shader_t(GL_FRAGMENT_SHADER, "shaders/triangles.frag");
-	fs->compile();
+	glGenVertexArrays(1, &(this->vao));
+	glGenBuffers(1, &(this->vbo));
+	
+	this->bind_vertex_array();
+	this->bind_vertex_buffer();
 
-	this->opengl_program = new opengl_program_t(vs, fs);
+	this->player = new game_player_t;
 }
 
 game_world_t::~game_world_t ()
 {
+	delete this->player;
+}
 
+void game_world_t::bind_vertex_array ()
+{
+	glBindVertexArray(this->vao);
+}
+
+void game_world_t::bind_vertex_buffer ()
+{
+	glBindBuffer(GL_ARRAY_BUFFER, this->vbo);
 }
 
 int main (int argc, char **argv)

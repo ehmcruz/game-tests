@@ -20,7 +20,7 @@ class opengl_program_t;
 
 class shader_t
 {
-private:
+protected:
 	OO_ENCAPSULATE(GLuint, shader_id)
 	OO_ENCAPSULATE(GLenum, shader_type)
 	OO_ENCAPSULATE_REFERENCE(std::string, fname)
@@ -34,13 +34,60 @@ public:
 
 class opengl_program_t
 {
-private:
+protected:
 	OO_ENCAPSULATE(GLuint, program_id)
 	OO_ENCAPSULATE(shader_t*, vs)
 	OO_ENCAPSULATE(shader_t*, fs)
 
 public:
-	opengl_program_t (shader_t *vs, shader_t *fs);
+	opengl_program_t ();
+	void attach_shaders ();
+	void link_program ();
+	void use_program ();
+};
+
+class opengl_program_triangle_t: public opengl_program_t
+{
+protected:
+	enum gl_attrib_t {
+		attrib_position,
+		attrib_offset,
+		attrib_color
+	} t_attrib_id;
+
+	struct gl_vertex_t {
+		GLfloat x; // local x,y coords
+		GLfloat y;
+		GLfloat offset_x; // global x,y coords, which are added to the local coords
+		GLfloat offset_y;
+		GLfloat r;
+		GLfloat g;
+		GLfloat b;
+		GLfloat a; // alpha
+	};
+
+public:
+	opengl_program_triangle_t ();
+};
+
+// ---------------------------------------------------
+
+class opengl_circle_factory_t
+{
+private:
+	float *table_sin;
+	float *table_cos;
+	uint32_t n_triangles;
+
+public:
+	opengl_circle_factory_t (uint32_t n_triangles);
+
+	inline uint32_t get_n_vertices ()
+	{
+		return (3 * this->n_triangles);
+	}
+
+	void fill_vertex_buffer (float radius, float *x, float *y, uint32_t stride);
 };
 
 #endif

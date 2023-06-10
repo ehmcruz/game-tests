@@ -1,6 +1,6 @@
 CPP = g++
 CPPFLAGS = `sdl2-config --cflags` -g -mconsole #-O2
-LDFLAGS = `sdl2-config --libs` -mconsole -lglew32 -lopengl32
+LDFLAGS = `sdl2-config --libs` -mconsole -lglew32 -lopengl32 -lm
 BIN = pacman.exe
 
 OBJS := $(patsubst %.cpp,%.o,$(wildcard src/*.cpp))

@@ -14,17 +14,24 @@
 
 #include "lib.h"
 #include "opengl.h"
+#include "game-object.h"
+
+// ---------------------------------------------------
 
 class game_world_t;
 
+// ---------------------------------------------------
+
 class game_main_t
 {
-private:
+protected:
 	OO_ENCAPSULATE(SDL_Window*, sdl_window)
 	OO_ENCAPSULATE(SDL_GLContext, sdl_gl_context)
 	OO_ENCAPSULATE(uint32_t, screen_width_px)
 	OO_ENCAPSULATE(uint32_t, screen_height_px)
 	OO_ENCAPSULATE(game_world_t*, game_world)
+	OO_ENCAPSULATE_READONLY(opengl_circle_factory_t*, opengl_circle_factory_low_def)
+	OO_ENCAPSULATE_READONLY(opengl_circle_factory_t*, opengl_circle_factory_high_def)
 
 public:
 	game_main_t ();
@@ -32,23 +39,32 @@ public:
 	void run ();
 };
 
+// ---------------------------------------------------
+
 class game_world_t
 {
-private:
-	opengl_program_t *ogl_program;
-
+protected:
 	// the screen coordinates here are in game world coords (not opengl, neither pixels)
 	// every unit corresponds to a tile
-	OO_ENCAPSULATE(float, screen_width)
-	OO_ENCAPSULATE(float, screen_height)
+	OO_ENCAPSULATE_READONLY(float, screen_width)
+	OO_ENCAPSULATE_READONLY(float, screen_height)
 	//OO_ENCAPSULATE(float, world_to_opengl_conversion)
 
-	OO_ENCAPSULATE(opengl_program_t*, opengl_program)
+	OO_ENCAPSULATE_READONLY(opengl_program_triangle_t*, opengl_program_triangle)
+	OO_ENCAPSULATE_READONLY(GLuint, vao) // vertex array descriptor id
+	OO_ENCAPSULATE_READONLY(GLuint, vbo) // vertex buffer id
+
+	OO_ENCAPSULATE_REFERENCE_READONLY(game_player_t*, player)
 
 public:
 	game_world_t ();
 	~game_world_t ();
+
+	void bind_vertex_array ();
+	void bind_vertex_buffer ();
 };
+
+// ---------------------------------------------------
 
 extern game_main_t *game_main;
 

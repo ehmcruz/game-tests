@@ -1,6 +1,9 @@
 #ifndef __PACMAN_SDL_OPENGL_LIB_HEADER_H__
 #define __PACMAN_SDL_OPENGL_LIB_HEADER_H__
 
+#include <iostream>
+#include <string>
+
 #define DEBUG
 
 #define blikely(x)       __builtin_expect((x),1)
@@ -13,7 +16,7 @@
 #endif
 
 #define OO_ENCAPSULATE(TYPE, VAR) \
-	private: \
+	protected: \
 		TYPE VAR; \
 	public: \
 		inline void set_##VAR (TYPE VAR) { \
@@ -21,10 +24,20 @@
 		} \
 		inline TYPE get_##VAR () { \
 			return this->VAR; \
-		}
+		} \
+	protected:
+
+#define OO_ENCAPSULATE_READONLY(TYPE, VAR) \
+	protected: \
+		TYPE VAR; \
+	public: \
+		inline TYPE get_##VAR () { \
+			return this->VAR; \
+		} \
+	protected:
 
 #define OO_ENCAPSULATE_REFERENCE(TYPE, VAR) \
-	private: \
+	protected: \
 		TYPE VAR; \
 	public: \
 		inline void set_##VAR (TYPE& VAR) { \
@@ -32,7 +45,17 @@
 		} \
 		inline TYPE& get_##VAR () { \
 			return this->VAR; \
-		}
+		} \
+	protected:
+
+#define OO_ENCAPSULATE_REFERENCE_READONLY(TYPE, VAR) \
+	protected: \
+		TYPE VAR; \
+	public: \
+		inline TYPE& get_##VAR () { \
+			return this->VAR; \
+		} \
+	protected:
 
 #define ASSERT(V) C_ASSERT_PRINT(V, "bye!\n")
 
