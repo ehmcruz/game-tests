@@ -91,6 +91,9 @@ opengl_circle_factory_t::opengl_circle_factory_t (uint32_t n_triangles)
 	double angle, delta;
 	
 	this->n_triangles = n_triangles;
+	
+	this->table_cos = new float[n_triangles];
+	this->table_sin = new float[n_triangles];
 
 	/*
 		cos(angle) = x / radius
@@ -111,6 +114,12 @@ opengl_circle_factory_t::opengl_circle_factory_t (uint32_t n_triangles)
 		
 		angle += delta;
 	}
+}
+
+opengl_circle_factory_t::~opengl_circle_factory_t ()
+{
+	delete[] this->table_cos;
+	delete[] this->table_sin;
 }
 
 void opengl_circle_factory_t::fill_vertex_buffer (float radius, float *x, float *y, uint32_t stride)

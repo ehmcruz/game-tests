@@ -7,7 +7,14 @@ game_main_t *game_main = nullptr;
 game_main_t::game_main_t ()
 {
 	ASSERT(game_main == nullptr)
+}
 
+game_main_t::~game_main_t ()
+{
+}
+
+void game_main_t::load ()
+{
 	SDL_Init( SDL_INIT_EVERYTHING );
 
 	SDL_GL_SetAttribute( SDL_GL_DOUBLEBUFFER, 1 );
@@ -43,18 +50,45 @@ game_main_t::game_main_t ()
 	this->opengl_circle_factory_low_def = new opengl_circle_factory_t(CONFIG_OPENGL_LOW_DEF_CIRCLES_TRIANGLES);
 	this->opengl_circle_factory_high_def = new opengl_circle_factory_t(CONFIG_OPENGL_HIGH_DEF_CIRCLES_TRIANGLES);
 
+	dprint( "loaded opengl stuff" << std::endl )
+
 	this->game_world = nullptr;
 	this->game_world = new game_world_t;
-}
 
-game_main_t::~game_main_t ()
-{
+	dprint( "loaded world" << std::endl )
 
+	this->alive = true;
 }
 
 void game_main_t::run ()
 {
-	while (1);
+	SDL_Event event;
+
+	while (this->alive) {
+		while ( SDL_PollEvent( &event ) ) {
+			switch (event.type) {
+				case SDL_QUIT:
+					this->alive = false;
+					break;
+			}
+		}
+
+		glClear( GL_COLOR_BUFFER_BIT );
+
+		//glBufferData( GL_ARRAY_BUFFER, sizeof(gl_vertex_t) * circle_factory.get_n_vertices(), g_vertex_buffer_data, GL_DYNAMIC_DRAW );
+
+		//glBindVertexArray( vao );
+		//glDrawArrays( GL_TRIANGLES, 0, circle_factory.get_n_vertices() );
+
+		SDL_GL_SwapWindow(this->sdl_window);
+	}
+}
+
+void game_main_t::cleanup ()
+{
+	SDL_GL_DeleteContext(this->sdl_gl_context);
+	SDL_DestroyWindow(this->sdl_window);
+	SDL_Quit();
 }
 
 game_world_t::game_world_t ()
@@ -63,6 +97,9 @@ game_world_t::game_world_t ()
 	this->screen_height = 16.0f;
 
 	this->opengl_program_triangle = new opengl_program_triangle_t;
+
+	dprint( "loaded opengl triangle program" << std::endl )
+
 	this->opengl_program_triangle->use_program();
 
 	glGenVertexArrays(1, &(this->vao));
@@ -70,6 +107,8 @@ game_world_t::game_world_t ()
 	
 	this->bind_vertex_array();
 	this->bind_vertex_buffer();
+
+	dprint( "generated and binded opengl world vertex array/buffer" << std::endl )
 
 	this->player = new game_player_t;
 }
@@ -92,8 +131,12 @@ void game_world_t::bind_vertex_buffer ()
 int main (int argc, char **argv)
 {
 	game_main = new game_main_t;
-
+	
+	game_main->load();
 	game_main->run();
+	game_main->cleanup();
+
+	delete game_main;
 
 	return 0;
 }

@@ -81,6 +81,7 @@ private:
 
 public:
 	opengl_circle_factory_t (uint32_t n_triangles);
+	~opengl_circle_factory_t ();
 
 	inline uint32_t get_n_vertices ()
 	{

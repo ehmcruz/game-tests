@@ -30,13 +30,16 @@ protected:
 	OO_ENCAPSULATE(uint32_t, screen_width_px)
 	OO_ENCAPSULATE(uint32_t, screen_height_px)
 	OO_ENCAPSULATE(game_world_t*, game_world)
+	OO_ENCAPSULATE(bool, alive)
 	OO_ENCAPSULATE_READONLY(opengl_circle_factory_t*, opengl_circle_factory_low_def)
 	OO_ENCAPSULATE_READONLY(opengl_circle_factory_t*, opengl_circle_factory_high_def)
 
 public:
 	game_main_t ();
 	~game_main_t ();
+	void load ();
 	void run ();
+	void cleanup ();
 };
 
 // ---------------------------------------------------
