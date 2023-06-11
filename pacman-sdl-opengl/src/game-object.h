@@ -18,6 +18,9 @@
 
 // ---------------------------------------------------
 
+class game_world_t;
+class game_object_t;
+
 enum class shape_type_t {
 	circle
 };
@@ -31,6 +34,7 @@ protected:
 
 public:
 	virtual uint32_t get_n_vertices () = 0;
+	virtual void push_vertices (float *x, float *y, uint32_t stride) = 0;
 };
 
 // ---------------------------------------------------
@@ -41,6 +45,7 @@ protected:
 	opengl_circle_factory_t *factory;
 
 	OO_ENCAPSULATE(float, radius)
+	OO_ENCAPSULATE(game_object_t*, object)
 
 public:
 	inline shape_circle_t (float radius, opengl_circle_factory_t *factory)
@@ -53,6 +58,7 @@ public:
 	}
 
 	uint32_t get_n_vertices () override;
+	void push_vertices (float *x, float *y, uint32_t stride) override;
 };
 
 // ---------------------------------------------------
@@ -74,6 +80,8 @@ protected:
 	OO_ENCAPSULATE_READONLY(float, yf)
 	OO_ENCAPSULATE_READONLY(int32_t, xi)
 	OO_ENCAPSULATE_READONLY(int32_t, yi)
+	
+	OO_ENCAPSULATE(game_world_t*, game_world)
 
 public:
 	#define TILE_MASK (CONFIG_TILE_SIZE - 1)
@@ -91,6 +99,8 @@ public:
 		this->yf = static_cast<float>(yi >> CONFIG_TILE_BITS)
 		         + static_cast<float>(yi & TILE_MASK) / static_cast<float>(CONFIG_TILE_SIZE);
 	}
+
+	virtual void render () = 0;
 };
 
 // ---------------------------------------------------
@@ -103,6 +113,8 @@ protected:
 public:
 	game_player_t ();
 	~game_player_t ();
+
+	void render () override;
 };
 
 #endif

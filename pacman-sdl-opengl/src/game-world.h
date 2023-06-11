@@ -12,6 +12,8 @@
 
 #include <stdint.h>
 
+#include <vector>
+
 #include "lib.h"
 #include "opengl.h"
 #include "game-object.h"
@@ -54,17 +56,26 @@ protected:
 	//OO_ENCAPSULATE(float, world_to_opengl_conversion)
 
 	OO_ENCAPSULATE_READONLY(opengl_program_triangle_t*, opengl_program_triangle)
-	OO_ENCAPSULATE_READONLY(GLuint, vao) // vertex array descriptor id
-	OO_ENCAPSULATE_READONLY(GLuint, vbo) // vertex buffer id
 
 	OO_ENCAPSULATE_REFERENCE_READONLY(game_player_t*, player)
+
+protected:
+	std::vector< game_object_t* > objects;
 
 public:
 	game_world_t ();
 	~game_world_t ();
 
-	void bind_vertex_array ();
 	void bind_vertex_buffer ();
+
+	inline void add_object (game_object_t *obj)
+	{
+		obj->set_game_world(this);
+		this->objects.push_back(obj);
+	}
+
+	void load_matrices ();
+	void render ();
 };
 
 // ---------------------------------------------------

@@ -1,4 +1,5 @@
 #include <iostream>
+#include <iomanip>
 
 #include "game-world.h"
 
@@ -15,6 +16,9 @@ game_main_t::~game_main_t ()
 
 void game_main_t::load ()
 {
+	std::cout << std::setprecision(2);
+	std::cout << std::fixed;
+
 	SDL_Init( SDL_INIT_EVERYTHING );
 
 	SDL_GL_SetAttribute( SDL_GL_DOUBLEBUFFER, 1 );
@@ -48,7 +52,7 @@ void game_main_t::load ()
 	glViewport(0, 0, this->screen_width_px, this->screen_height_px);
 
 	this->opengl_circle_factory_low_def = new opengl_circle_factory_t(CONFIG_OPENGL_LOW_DEF_CIRCLES_TRIANGLES);
-	this->opengl_circle_factory_high_def = new opengl_circle_factory_t(CONFIG_OPENGL_HIGH_DEF_CIRCLES_TRIANGLES);
+	//this->opengl_circle_factory_high_def = new opengl_circle_factory_t(CONFIG_OPENGL_HIGH_DEF_CIRCLES_TRIANGLES);
 
 	dprint( "loaded opengl stuff" << std::endl )
 
@@ -80,6 +84,8 @@ void game_main_t::run ()
 		//glBindVertexArray( vao );
 		//glDrawArrays( GL_TRIANGLES, 0, circle_factory.get_n_vertices() );
 
+		this->game_world->render();
+
 		SDL_GL_SwapWindow(this->sdl_window);
 	}
 }
@@ -101,16 +107,18 @@ game_world_t::game_world_t ()
 	dprint( "loaded opengl triangle program" << std::endl )
 
 	this->opengl_program_triangle->use_program();
-
-	glGenVertexArrays(1, &(this->vao));
-	glGenBuffers(1, &(this->vbo));
 	
-	this->bind_vertex_array();
-	this->bind_vertex_buffer();
+	this->opengl_program_triangle->bind_vertex_array();
+	this->opengl_program_triangle->bind_vertex_buffer();
+
+	this->opengl_program_triangle->setup_vertex_array();
 
 	dprint( "generated and binded opengl world vertex array/buffer" << std::endl )
 
+	this->load_matrices();
+
 	this->player = new game_player_t;
+	this->add_object(player);
 }
 
 game_world_t::~game_world_t ()
@@ -118,14 +126,58 @@ game_world_t::~game_world_t ()
 	delete this->player;
 }
 
-void game_world_t::bind_vertex_array ()
+typedef float t_mat4x4[16];
+
+static inline void mat4x4_ortho(float *out, float left, float right, float bottom, float top, float znear, float zfar )
 {
-	glBindVertexArray(this->vao);
+	#define T(a, b) (a * 4 + b)
+
+	out[T(0,0)] = 2.0f / (right - left);
+	out[T(0,1)] = 0.0f;
+	out[T(0,2)] = 0.0f;
+	out[T(0,3)] = 0.0f;
+
+	out[T(1,1)] = 2.0f / (top - bottom);
+	out[T(1,0)] = 0.0f;
+	out[T(1,2)] = 0.0f;
+	out[T(1,3)] = 0.0f;
+
+	out[T(2,2)] = -2.0f / (zfar - znear);
+	out[T(2,0)] = 0.0f;
+	out[T(2,1)] = 0.0f;
+	out[T(2,3)] = 0.0f;
+
+	out[T(3,0)] = -(right + left) / (right - left);
+	out[T(3,1)] = -(top + bottom) / (top - bottom);
+	out[T(3,2)] = -(zfar + znear) / (zfar - znear);
+	out[T(3,3)] = 1.0f;
+
+	#undef T
 }
 
-void game_world_t::bind_vertex_buffer ()
+void game_world_t::load_matrices ()
 {
-	glBindBuffer(GL_ARRAY_BUFFER, this->vbo);
+	float projection_matrix[4][4];
+	mat4x4_ortho( (float*)projection_matrix, 0.0f, this->screen_width, this->screen_height, 0.0f, 0.0f, 100.0f );
+	glUniformMatrix4fv( glGetUniformLocation(opengl_program_triangle->get_program_id() , "u_projection_matrix" ), 1, GL_FALSE, (float*)projection_matrix );
+
+	dprint( "projection matrix sent to GPU" << std::endl )
+}
+
+void game_world_t::render ()
+{
+	dprint( "start new frame render" << std::endl )
+
+	this->opengl_program_triangle->clear();
+
+	for (game_object_t *obj: this->objects) {
+		obj->render();
+	}
+
+	//this->opengl_program_triangle->debug(); exit(1);
+
+	this->opengl_program_triangle->upload_vertex_buffer();
+	this->opengl_program_triangle->draw();
 }
 
 int main (int argc, char **argv)

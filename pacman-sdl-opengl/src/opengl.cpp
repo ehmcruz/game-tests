@@ -26,8 +26,8 @@ void shader_t::compile ()
 	str_stream << t.rdbuf();
 	std::string buffer = str_stream.str();
 
-	dprint( "loaded shader (" << this->fname << "):" << std::endl )
-	dprint( buffer )
+	dprint( "loaded shader (" << this->fname << ")" << std::endl )
+	//dprint( buffer )
 	
 	const char *c_str = buffer.c_str();
 	glShaderSource(this->shader_id, 1, ( const GLchar ** )&c_str, nullptr);
@@ -81,9 +81,75 @@ opengl_program_triangle_t::opengl_program_triangle_t ()
 
 	this->link_program();
 
+	glGenVertexArrays(1, &(this->vao));
+	glGenBuffers(1, &(this->vbo));
+}
+
+void opengl_program_triangle_t::bind_vertex_array ()
+{
+	glBindVertexArray(this->vao);
+}
+
+void opengl_program_triangle_t::bind_vertex_buffer ()
+{
+	glBindBuffer(GL_ARRAY_BUFFER, this->vbo);
+}
+
+void opengl_program_triangle_t::setup_vertex_array ()
+{
+	uint32_t pos, length;
+
 	glEnableVertexAttribArray( attrib_position );
 	glEnableVertexAttribArray( attrib_offset );
 	glEnableVertexAttribArray( attrib_color );
+
+	pos = 0;
+	length = 2;
+	glVertexAttribPointer( attrib_position, length, GL_FLOAT, GL_FALSE, sizeof(gl_vertex_t), ( void * )(pos * sizeof(float)) );
+	
+	pos += length;
+	length = 2;
+	glVertexAttribPointer( attrib_offset, length, GL_FLOAT, GL_FALSE, sizeof(gl_vertex_t), ( void * )(pos * sizeof(float)) );
+	
+	pos += length;
+	length = 4;
+	glVertexAttribPointer( attrib_color, length, GL_FLOAT, GL_FALSE, sizeof(gl_vertex_t), ( void * )(pos * sizeof(float)) );
+}
+
+void opengl_program_triangle_t::upload_vertex_buffer ()
+{
+	uint32_t n = this->triangle_buffer.get_vertex_buffer_used();
+
+	glBufferData(GL_ARRAY_BUFFER, sizeof(gl_vertex_t) * n, this->triangle_buffer.get_vertex_buffer(), GL_DYNAMIC_DRAW);
+}
+
+void opengl_program_triangle_t::draw ()
+{
+	uint32_t n = this->triangle_buffer.get_vertex_buffer_used();
+	glDrawArrays(GL_TRIANGLES, 0, n);
+}
+
+void opengl_program_triangle_t::debug ()
+{
+	uint32_t n = this->triangle_buffer.get_vertex_buffer_used();
+
+	for (uint32_t i=0; i<n; i++) {
+		gl_vertex_t *v = this->triangle_buffer.get_vertex(i);
+
+		if ((i % 3) == 0)
+			std::cout << std::endl;
+
+		std::cout << "vertex[" << i
+			<< "] x=" << v->x
+			<< " y= " << v->y
+			<< " offset_x= " << v->offset_x
+			<< " offset_y= " << v->offset_y
+			<< " r= " << v->r
+			<< " g= " << v->g
+			<< " b= " << v->b
+			<< " a= " << v->a
+			<< std::endl;
+	}
 }
 
 opengl_circle_factory_t::opengl_circle_factory_t (uint32_t n_triangles)
@@ -108,10 +174,22 @@ opengl_circle_factory_t::opengl_circle_factory_t (uint32_t n_triangles)
 	delta = (2.0 * MY_PI) / static_cast<double>(this->n_triangles);
 	angle = delta;
 
+/*
+	dprint( std::endl )
+	dprint( "delta = " << delta << std::endl )
+	dprint( std::endl )
+*/
+
 	for (uint32_t i=0; i<this->n_triangles; i++) {
 		this->table_cos[i] = static_cast<float>( cos(angle) );
 		this->table_sin[i] = static_cast<float>( sin(angle) );
-		
+
+	/*
+		dprint( "cos(" << angle << ") = " << this->table_cos[i] << std::endl )
+		dprint( "sin(" << angle << ") = " << this->table_sin[i] << std::endl )
+		dprint( std::endl )
+	*/
+
 		angle += delta;
 	}
 }
