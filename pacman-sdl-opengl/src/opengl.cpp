@@ -79,6 +79,9 @@ void opengl_program_t::use_program ()
 opengl_program_triangle_t::opengl_program_triangle_t ()
 	: opengl_program_t ()
 {
+	static_assert(sizeof(gl_vertex_t) == 32);
+	static_assert((sizeof(gl_vertex_t) / sizeof(GLfloat)) == 8);
+
 	this->vs = new shader_t(GL_VERTEX_SHADER, "shaders/triangles.vert");
 	this->vs->compile();
 
@@ -87,9 +90,9 @@ opengl_program_triangle_t::opengl_program_triangle_t ()
 
 	this->attach_shaders();
 
-	glBindAttribLocation(this->program_id, attrib_position, "i_position" );
-	glBindAttribLocation(this->program_id, attrib_offset, "i_offset" );
-	glBindAttribLocation(this->program_id, attrib_color, "i_color" );
+	glBindAttribLocation(this->program_id, attrib_position, "i_position");
+	glBindAttribLocation(this->program_id, attrib_offset, "i_offset");
+	glBindAttribLocation(this->program_id, attrib_color, "i_color");
 
 	this->link_program();
 
@@ -131,8 +134,13 @@ void opengl_program_triangle_t::setup_vertex_array ()
 void opengl_program_triangle_t::upload_vertex_buffer ()
 {
 	uint32_t n = this->triangle_buffer.get_vertex_buffer_used();
-
 	glBufferData(GL_ARRAY_BUFFER, sizeof(gl_vertex_t) * n, this->triangle_buffer.get_vertex_buffer(), GL_DYNAMIC_DRAW);
+}
+
+void opengl_program_triangle_t::upload_projection_matrix (projection_matrix_t& m)
+{
+	glUniformMatrix4fv( glGetUniformLocation(this->program_id, "u_projection_matrix"), 1, GL_FALSE, m.get_raw() );
+	dprint( "projection matrix sent to GPU" << std::endl )
 }
 
 void opengl_program_triangle_t::draw ()
@@ -251,4 +259,32 @@ void opengl_circle_factory_t::fill_vertex_buffer (float radius, float *x, float 
 
 		j += stride;
 	}
+}
+
+void projection_matrix_t::setup (float left, float right, 
+                                 float bottom, float top,
+								 float znear, float zfar
+								 )
+{
+	projection_matrix_t& m = *this;
+
+	m(0,0) = 2.0f / (right - left);
+	m(0,1) = 0.0f;
+	m(0,2) = 0.0f;
+	m(0,3) = 0.0f;
+
+	m(1,0) = 0.0f;
+	m(1,1) = 2.0f / (top - bottom);
+	m(1,2) = 0.0f;
+	m(1,3) = 0.0f;
+
+	m(2,0) = 0.0f;
+	m(2,1) = 0.0f;
+	m(2,2) = -2.0f / (zfar - znear);
+	m(2,3) = 0.0f;
+
+	m(3,0) = -(right + left) / (right - left);
+	m(3,1) = -(top + bottom) / (top - bottom);
+	m(3,2) = -(zfar + znear) / (zfar - znear);
+	m(3,3) = 1.0f;
 }

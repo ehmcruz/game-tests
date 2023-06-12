@@ -2,12 +2,12 @@ CPP = g++
 BIN = pacman.exe
 
 # Windows
-#CPPFLAGS = `sdl2-config --cflags` -g -mconsole #-O2
-#LDFLAGS = `sdl2-config --libs` -mconsole -lglew32 -lopengl32 -lm
+CPPFLAGS = `sdl2-config --cflags` -g -mconsole #-O2
+LDFLAGS = `sdl2-config --libs` -mconsole -lglew32 -lopengl32 -lm
 
 # Linux
-CPPFLAGS = `sdl2-config --cflags` -g #-O2
-LDFLAGS = `sdl2-config --libs` -lGL -lGLEW -lm
+#CPPFLAGS = `sdl2-config --cflags` -g #-O2
+#LDFLAGS = `sdl2-config --libs` -lGL -lGLEW -lm
 
 # ----------------------------------
 

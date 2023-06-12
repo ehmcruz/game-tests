@@ -31,8 +31,26 @@ class shape_t
 {
 protected:
 	OO_ENCAPSULATE_READONLY(shape_type_t, shape_type)
+	OO_ENCAPSULATE(game_object_t*, object)
+
+	// distance from the center of the shape to the center of the object
+	OO_ENCAPSULATE(float, dx)
+	OO_ENCAPSULATE(float, dy)
 
 public:
+	inline shape_t (shape_type_t shape_type, game_object_t *object)
+	{
+		this->shape_type = shape_type;
+		this->object = object;
+		this->dx = 0.0f;
+		this->dy = 0.0f;
+	}
+
+	inline shape_t (shape_type_t shape_type)
+		: shape_t (shape_type, nullptr)
+	{
+	}
+
 	virtual uint32_t get_n_vertices () = 0;
 	virtual void push_vertices (float *x, float *y, uint32_t stride) = 0;
 };
@@ -45,16 +63,20 @@ protected:
 	opengl_circle_factory_t *factory;
 
 	OO_ENCAPSULATE(float, radius)
-	OO_ENCAPSULATE(game_object_t*, object)
 
 public:
-	inline shape_circle_t (float radius, opengl_circle_factory_t *factory)
+	inline shape_circle_t (game_object_t *object, float radius, opengl_circle_factory_t *factory)
+		: shape_t (shape_type_t::circle, object)
 	{
-		this->shape_type = shape_type_t::circle;
 		this->factory = factory;
 		this->radius = radius;
 
 		dprint( "circle created r=" << this->radius << std::endl )
+	}
+
+	inline shape_circle_t (float radius, opengl_circle_factory_t *factory)
+		: shape_circle_t (nullptr, radius, factory)
+	{
 	}
 
 	uint32_t get_n_vertices () override;

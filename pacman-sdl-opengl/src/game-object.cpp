@@ -8,12 +8,19 @@ uint32_t shape_circle_t::get_n_vertices ()
 
 void shape_circle_t::push_vertices (float *x, float *y, uint32_t stride)
 {
+	uint32_t n = this->get_n_vertices();
+
 	this->factory->fill_vertex_buffer(this->radius, x, y, stride);
+
+	for (uint32_t i=0; i<n; i++) {
+		x[i] += this->dx;
+		y[i] += this->dy;
+	}
 }
 
 game_player_t::game_player_t ()
 {
-	this->shape = new shape_circle_t( CONFIG_PACMAN_RADIUS, game_main->get_opengl_circle_factory_low_def() );
+	this->shape = new shape_circle_t( this, CONFIG_PACMAN_RADIUS, game_main->get_opengl_circle_factory_low_def() );
 	this->update_x_pos(200);
 	this->update_y_pos(200);
 
@@ -34,7 +41,7 @@ void game_player_t::render ()
 	n_vertices = this->shape->get_n_vertices();
 	dprint( "player allocating space for " << n_vertices << " vertices in vertex_buffer" << std::endl )
 
-	opengl_program_triangle = this->game_world->get_opengl_program_triangle();
+	opengl_program_triangle = game_main->get_opengl_program_triangle();
 	vertices = opengl_program_triangle->alloc_vertices(n_vertices);
 
 	this->shape->push_vertices( &(vertices->x), &(vertices->y), opengl_program_triangle->get_stride() );

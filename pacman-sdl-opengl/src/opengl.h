@@ -26,8 +26,8 @@ class opengl_program_t;
 class shader_t
 {
 protected:
-	OO_ENCAPSULATE(GLuint, shader_id)
-	OO_ENCAPSULATE(GLenum, shader_type)
+	OO_ENCAPSULATE_READONLY(GLuint, shader_id)
+	OO_ENCAPSULATE_READONLY(GLenum, shader_type)
 	OO_ENCAPSULATE_REFERENCE(std::string, fname)
 
 public:
@@ -35,6 +35,14 @@ public:
 	void compile ();
 
 	friend class opengl_program_t;
+};
+
+// ---------------------------------------------------
+
+class projection_matrix_t: public static_matrix_t<float, 4, 4>
+{
+public:
+	void setup (float left, float right, float bottom, float top, float znear, float zfar);
 };
 
 // ---------------------------------------------------
@@ -74,8 +82,6 @@ protected:
 		if (this->vertex_buffer_capacity < target_capacity)
 			this->vertex_buffer_capacity = target_capacity;
 		this->vertex_buffer = new T[this->vertex_buffer_capacity];
-
-		ASSERT((this->vertex_buffer_capacity - this->vertex_buffer_used) >= target_capacity)
 
 		memcpy(this->vertex_buffer, old_buffer, old_capacity * sizeof(T));
 
@@ -159,7 +165,7 @@ public:
 
 	inline uint32_t get_stride ()
 	{
-		return 8;
+		return (sizeof(gl_vertex_t) / sizeof(GLfloat));
 	}
 
 	inline void clear ()
@@ -176,6 +182,7 @@ public:
 	void bind_vertex_buffer ();
 	void setup_vertex_array ();
 	void upload_vertex_buffer ();
+	void upload_projection_matrix (projection_matrix_t& m);
 	void draw ();
 
 	void debug ();

@@ -4,16 +4,24 @@
 #include <iostream>
 #include <string>
 
+// ---------------------------------------------------
+
 #define DEBUG
+
+// ---------------------------------------------------
 
 #define blikely(x)       __builtin_expect((x),1)
 #define bunlikely(x)     __builtin_expect((x),0)
+
+// ---------------------------------------------------
 
 #ifdef DEBUG
 	#define dprint(STR) { std::cout << STR; }
 #else
 	#define dprint(STR)
 #endif
+
+// ---------------------------------------------------
 
 #define OO_ENCAPSULATE(TYPE, VAR) \
 	protected: \
@@ -57,14 +65,34 @@
 		} \
 	protected:
 
-#define ASSERT(V) C_ASSERT_PRINT(V, "bye!\n")
+#define ASSERT(V) ASSERT_PRINT(V, "bye!\n")
 
-#define C_ASSERT_PRINT(V, STR) \
+#define ASSERT_PRINT(V, STR) \
 	if (bunlikely(!(V))) { \
 		std::string assert_str_ = (STR); \
 		std::cout << "sanity error!" << std::endl << "file " << __FILE__ << " at line " << __LINE__ << " assertion failed!" << std::endl << #V << std::endl; \
 		std::cout << assert_str_ << std::endl; \
 		exit(1); \
 	}
+
+// ---------------------------------------------------
+
+template<typename T, int w, int h>
+class static_matrix_t
+{
+private:
+	T storage[h * w];
+
+public:
+	inline T* get_raw ()
+	{
+		return this->storage;
+	}
+
+	inline T& operator() (int j, int i)
+	{
+		return this->storage[j*w + i];
+	}
+};
 
 #endif

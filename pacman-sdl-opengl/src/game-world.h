@@ -35,11 +35,13 @@ protected:
 	OO_ENCAPSULATE(bool, alive)
 	OO_ENCAPSULATE_READONLY(opengl_circle_factory_t*, opengl_circle_factory_low_def)
 	OO_ENCAPSULATE_READONLY(opengl_circle_factory_t*, opengl_circle_factory_high_def)
+	OO_ENCAPSULATE_READONLY(opengl_program_triangle_t*, opengl_program_triangle)
 
 public:
 	game_main_t ();
 	~game_main_t ();
 	void load ();
+	void load_opengl_programs ();
 	void run ();
 	void cleanup ();
 };
@@ -49,13 +51,13 @@ public:
 class game_world_t
 {
 protected:
+	projection_matrix_t projection_matrix;
+
 	// the screen coordinates here are in game world coords (not opengl, neither pixels)
 	// every unit corresponds to a tile
 	OO_ENCAPSULATE_READONLY(float, screen_width)
 	OO_ENCAPSULATE_READONLY(float, screen_height)
 	//OO_ENCAPSULATE(float, world_to_opengl_conversion)
-
-	OO_ENCAPSULATE_READONLY(opengl_program_triangle_t*, opengl_program_triangle)
 
 	OO_ENCAPSULATE_REFERENCE_READONLY(game_player_t*, player)
 
@@ -74,7 +76,6 @@ public:
 		this->objects.push_back(obj);
 	}
 
-	void load_matrices ();
 	void render ();
 };
 
