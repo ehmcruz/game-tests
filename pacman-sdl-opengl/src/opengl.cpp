@@ -36,7 +36,19 @@ void shader_t::compile ()
 	GLint status;
 	glGetShaderiv(this->shader_id, GL_COMPILE_STATUS, &status);
 	if (status == GL_FALSE) {
-		std::cout << "vertex shader compilation failed" << std::endl;
+		std::cout << this->fname << " shader compilation failed" << std::endl;
+
+		GLint logSize = 0;
+		glGetShaderiv(this->shader_id, GL_INFO_LOG_LENGTH, &logSize);
+
+		char *berror = (char*)malloc(logSize);
+		ASSERT(berror != nullptr);
+
+		glGetShaderInfoLog(this->shader_id, logSize, nullptr, berror);
+
+		printf("%s\n", berror);
+		free(berror);
+
 		exit(1);
 	}
 }
