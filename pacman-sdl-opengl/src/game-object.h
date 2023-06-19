@@ -88,41 +88,15 @@ public:
 class game_object_t
 {
 protected:
-	/*
-		In this particular game, we need to be careful becausa pacman and the other
-		objects need to move only over a grid.
-		The easier (and bugless) solution I believe is to have 2 game coordinates.
-		One coord is the traditional float position.
-		The other coord is an integer coord.
-		The movement will be first computed with the integer-coord, and then it will
-		be translated to the float coord.
-		In this way, we can guarantee that pacman will move only over the grid.
-	*/
-	OO_ENCAPSULATE_READONLY(float, xf)
-	OO_ENCAPSULATE_READONLY(float, yf)
-	OO_ENCAPSULATE_READONLY(int32_t, xi)
-	OO_ENCAPSULATE_READONLY(int32_t, yi)
-	
+	OO_ENCAPSULATE(float, x)
+	OO_ENCAPSULATE(float, y)
+	OO_ENCAPSULATE(float, vx)
+	OO_ENCAPSULATE(float, vy)
 	OO_ENCAPSULATE(game_world_t*, game_world)
 
 public:
-	#define TILE_MASK (CONFIG_TILE_SIZE - 1)
-
-	inline void update_x_pos (uint32_t xi)
-	{
-		this->xi = xi;
-		this->xf = static_cast<float>(xi >> CONFIG_TILE_BITS)
-		         + static_cast<float>(xi & TILE_MASK) / static_cast<float>(CONFIG_TILE_SIZE);
-	}
-
-	inline void update_y_pos (uint32_t yi)
-	{
-		this->yi = yi;		
-		this->yf = static_cast<float>(yi >> CONFIG_TILE_BITS)
-		         + static_cast<float>(yi & TILE_MASK) / static_cast<float>(CONFIG_TILE_SIZE);
-	}
-
-	virtual void render () = 0;
+	void physics (float dt);
+	virtual void render (float dt) = 0;
 };
 
 // ---------------------------------------------------
@@ -136,7 +110,7 @@ public:
 	game_player_t ();
 	~game_player_t ();
 
-	void render () override;
+	void render (float dt) override;
 };
 
 #endif

@@ -95,4 +95,43 @@ public:
 	}
 };
 
+// ---------------------------------------------------
+
+template<typename T>
+class matrix_t
+{
+private:
+	T *storage;
+	OO_ENCAPSULATE_READONLY(uint32_t, w)
+	OO_ENCAPSULATE_READONLY(uint32_t, h)
+
+public:
+	matrix_t (uint32_t w, uint32_t h)
+	{
+		this->storage = new T[w*h];
+		this->w = w;
+		this->h = h;
+	}
+
+	~matrix_t ()
+	{
+		delete[] this->storage;
+	}
+
+	inline T* get_raw ()
+	{
+		return this->storage;
+	}
+
+	inline T& get (int row, int col)
+	{
+		return this->storage[row*this->w + col];
+	}
+
+	inline T& operator() (int row, int col)
+	{
+		return this->get(row, col);
+	}
+};
+
 #endif

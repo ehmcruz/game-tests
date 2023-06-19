@@ -1,9 +1,59 @@
 #include <iostream>
 #include <iomanip>
+#include <chrono>
 
 #include "game-world.h"
 
 game_main_t *game_main = nullptr;
+
+game_map_t::game_map_t ()
+{
+	this->w = 8;
+	this->h = 8;
+	this->map = new matrix_t<cell_t>(this->w, this->h);
+	matrix_t<cell_t>& m = *(this->map);
+	
+	std::string map_string = "00000000"
+	                         "0p     0"
+	                         "0      0"
+	                         "0      0"
+	                         "0      0"
+	                         "0      0"
+	                         "0      0"
+	                         "00000000";
+
+	ASSERT(map_string.length() == (this->w * this->h))
+
+	uint32_t k = 0;
+	for (uint32_t i=0; i<this->h; i++) {
+		for (uint32_t j=0; j<this->w; j++) {
+			switch (map_string[k]) {
+				case ' ':
+					m(i, j) = cell_t::empty;
+					break;
+				
+				case '0':
+					m(i, j) = cell_t::wall;
+					break;
+				
+				case 'p':
+					m(i, j) = cell_t::pacman_start;
+					break;
+				
+				default:
+					ASSERT(0)
+			}
+
+			k++;
+		}
+	}
+}
+
+game_map_t::~game_map_t ()
+{
+	if (this->map != nullptr)
+		delete this->map;
+}
 
 game_main_t::game_main_t ()
 {
@@ -16,8 +66,10 @@ game_main_t::~game_main_t ()
 
 void game_main_t::load ()
 {
-	std::cout << std::setprecision(2);
+	std::cout << std::setprecision(4);
 	std::cout << std::fixed;
+
+	this->state = game_state_t::initializing;
 
 	SDL_Init( SDL_INIT_EVERYTHING );
 
@@ -56,10 +108,12 @@ void game_main_t::load ()
 
 	dprint( "loaded opengl stuff" << std::endl )
 
+	dprint( "chorono resolution " << (static_cast<float>(std::chrono::high_resolution_clock::period::num) / static_cast<float>(std::chrono::high_resolution_clock::period::den)) << std::endl );
+
 	this->load_opengl_programs();
 
 	this->game_world = nullptr;
-	this->game_world = new game_world_t;
+	this->game_world = new game_world_t( new game_map_t() );
 
 	dprint( "loaded world" << std::endl )
 
@@ -85,13 +139,38 @@ void game_main_t::load_opengl_programs ()
 void game_main_t::run ()
 {
 	SDL_Event event;
+	const Uint8 *keys;
+	std::chrono::steady_clock::time_point tbegin, tend;
+	float real_dt, virtual_dt;
+	const float target_fps = 60.0f;
+	const float target_dt = 1.0f / target_fps;
+
+	this->state = game_state_t::playing;
+
+	keys = SDL_GetKeyboardState(nullptr);
+
+	real_dt = 0.0f;
+	virtual_dt = 0.0f;
 
 	while (this->alive) {
+		tbegin = std::chrono::steady_clock::now();
+
+		virtual_dt = (real_dt > target_dt) ? target_dt : real_dt;
+
+		dprint( "start new frame render real_dt=" << real_dt << " virtual_dt=" << virtual_dt << std::endl )
+
 		while ( SDL_PollEvent( &event ) ) {
 			switch (event.type) {
 				case SDL_QUIT:
 					this->alive = false;
-					break;
+				break;
+				
+				case SDL_KEYDOWN:
+					switch (this->state) {
+						case game_state_t::playing:
+							this->game_world->event_keydown(event.key.keysym.sym);
+						break;
+					}
 			}
 		}
 
@@ -102,9 +181,23 @@ void game_main_t::run ()
 		//glBindVertexArray( vao );
 		//glDrawArrays( GL_TRIANGLES, 0, circle_factory.get_n_vertices() );
 
-		this->game_world->render();
+		switch (this->state) {
+			case game_state_t::playing:
+				this->game_world->physics(virtual_dt, keys);
+				this->game_world->render(virtual_dt);
+			break;
+			
+			default:
+				ASSERT(0)
+		}
 
 		SDL_GL_SwapWindow(this->sdl_window);
+
+		do {
+			tend = std::chrono::steady_clock::now();
+			std::chrono::duration<float> elapsed_ = std::chrono::duration_cast<std::chrono::duration<float>>(tend - tbegin);
+			real_dt = elapsed_.count();
+		} while (real_dt < target_dt);
 	}
 }
 
@@ -115,19 +208,30 @@ void game_main_t::cleanup ()
 	SDL_Quit();
 }
 
-game_world_t::game_world_t ()
+game_world_t::game_world_t (game_map_t *map_)
+: map(*map_)
 {
-	this->screen_width = 16.0f;
-	this->screen_height = 16.0f;
+	this->w = static_cast<float>( this->map.get_w() );
+	this->h = static_cast<float>( this->map.get_h() );
 
-	this->projection_matrix.setup(0.0f, this->screen_width,
-	                              this->screen_height, 0.0f,
+	this->projection_matrix.setup(0.0f, this->w,
+	                              this->h, 0.0f,
 								  0.0f, 100.0f
 								  );
 	game_main->get_opengl_program_triangle()->upload_projection_matrix(this->projection_matrix);
 
 	this->player = new game_player_t;
 	this->add_object(player);
+
+	// find pacman start position
+	for (uint32_t y=0; y<this->map.get_h(); y++) {
+		for (uint32_t x=0; x<this->map.get_w(); x++) {
+			if (this->map(y, x) == game_map_t::cell_t::pacman_start) {
+				this->player->set_x( static_cast<float>(x) );
+				this->player->set_y( static_cast<float>(y) );
+			}
+		}
+	}
 }
 
 game_world_t::~game_world_t ()
@@ -135,14 +239,44 @@ game_world_t::~game_world_t ()
 	delete this->player;
 }
 
-void game_world_t::render ()
+void game_world_t::event_keydown (SDL_Keycode key)
 {
-	dprint( "start new frame render" << std::endl )
+	switch (key) {
+		case SDLK_LEFT:
+			this->player->set_vx(-CONFIG_PACMAN_SPEED);
+			this->player->set_vy(0.0f);
+		break;
 
+		case SDLK_RIGHT:
+			this->player->set_vx(CONFIG_PACMAN_SPEED);
+			this->player->set_vy(0.0f);
+		break;
+
+		case SDLK_UP:
+			this->player->set_vx(0.0f);
+			this->player->set_vy(-CONFIG_PACMAN_SPEED);
+		break;
+
+		case SDLK_DOWN:
+			this->player->set_vx(0.0f);
+			this->player->set_vy(CONFIG_PACMAN_SPEED);
+		break;
+	}
+}
+
+void game_world_t::physics (float dt, const Uint8 *keys)
+{
+	for (game_object_t *obj: this->objects) {
+		obj->physics(dt);
+	}
+}
+
+void game_world_t::render (float dt)
+{
 	game_main->get_opengl_program_triangle()->clear();
 
 	for (game_object_t *obj: this->objects) {
-		obj->render();
+		obj->render(dt);
 	}
 
 	//this->opengl_program_triangle->debug(); exit(1);
