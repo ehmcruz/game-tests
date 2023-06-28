@@ -9,6 +9,7 @@
 #include <sstream>
 #include <vector>
 #include <array>
+#include <optional>
 
 #define dprint(V) { std::cout << V ; }
 
@@ -18,10 +19,6 @@ private:
 	SDL_Window *window;
 	uint32_t screen_width;
 	uint32_t screen_height;
-
-	VkDevice device_context;
-	VkQueue queue;
-	uint32_t family_i;
 
 	VkSwapchainKHR swapchain = VK_NULL_HANDLE;
 	VkPresentModeKHR present_mode = VK_PRESENT_MODE_IMMEDIATE_KHR;
@@ -47,6 +44,9 @@ private:
 	VkResult result;
 	VkInstance instance;
 	VkSurfaceKHR window_surface;
+	VkDevice device_context;
+	VkQueue queue;
+	uint32_t family_i;
 	VkSwapchainKHR old_swapchain = nullptr;
 	uint32_t swapchain_buffer_count = 2;
 	VkSurfaceCapabilitiesKHR surface_caps {};
@@ -57,9 +57,11 @@ private:
 	VkPhysicalDevice device;
 	VkPhysicalDeviceProperties device_properties {};
 	VkPhysicalDeviceMemoryProperties device_memory_info {};
+	
 	std::vector<const char *> device_extensions;
 	std::vector<const char *> instance_layers;
 	std::vector<const char *> instance_extensions;
+	
 	VkDebugReportCallbackCreateInfoEXT debug_create_info = {};
 
 public:

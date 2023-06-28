@@ -146,6 +146,15 @@ void Vulkan::SelectDevice ()
 	std::vector<VkPhysicalDevice> devices(gpu_number);
 	vkEnumeratePhysicalDevices(this->instance, &gpu_number, devices.data());
 
+	struct MyDevice {
+		VkPhysicalDevice device;
+		VkPhysicalDeviceType type;
+		uint32_t score;
+	};
+
+	std::vector<MyDevice> devices_suitable;
+	devices_suitable.reserve(gpu_number);
+
 	for (const auto& device: devices) {
 		VkPhysicalDeviceProperties deviceProperties;
 		vkGetPhysicalDeviceProperties(device, &deviceProperties);
@@ -153,36 +162,96 @@ void Vulkan::SelectDevice ()
 		VkPhysicalDeviceFeatures deviceFeatures;
 		vkGetPhysicalDeviceFeatures(device, &deviceFeatures);
 
-		dprint( '\t' << deviceProperties.deviceName << "(" << get_device_type_str(deviceProperties.deviceType) << ")" << std::endl )
+		VkPhysicalDeviceMemoryProperties memoryProperties;
+		vkGetPhysicalDeviceMemoryProperties(device, &memoryProperties);
+
+		bool suitable = ((deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU
+		                  || deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+		                && deviceFeatures.geometryShader);
+
+		if (suitable) {
+			uint32_t score = 0;
+
+			dprint( '\t' << deviceProperties.deviceName << "(" << get_device_type_str(deviceProperties.deviceType) << ")" << std::endl )
+
+			dprint( "\t\t" << "Memory types: " << std::endl )
+			for (uint32_t i=0; i<memoryProperties.memoryTypeCount; i++)
+				dprint( "\t\t\t" << "heap index: " << memoryProperties.memoryTypes[i].heapIndex
+				                 << " flags: " << memoryProperties.memoryTypes[i].propertyFlags << std::endl )
+			
+			dprint( "\t\t" << "Memory heaps: " << std::endl )
+			for (uint32_t i=0; i<memoryProperties.memoryHeapCount; i++)
+				dprint( "\t\t\t" << "size: " << (memoryProperties.memoryHeaps[i].size / (1024*1024)) << "MB"
+				                 << " flags: " << memoryProperties.memoryHeaps[i].flags << std::endl )
+
+			switch (deviceProperties.deviceType) {
+				case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
+					score += 500;
+				break;
+
+				case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
+					score += 1000;
+				break;
+			}
+			
+			devices_suitable.push_back( MyDevice{
+				.device = device,
+				.type = deviceProperties.deviceType,
+				.score = score
+				} );
+		}
 	}
 
-	this->device = devices[0];
+	if (devices_suitable.size() == 0)
+		throw std::runtime_error("failed to find any suitable GPU!");
+
+	std::optional<MyDevice*> integrated_gpu;
+	std::optional<MyDevice*> discrete_gpu;
+
+	for (auto& my_device: devices_suitable) {
+		if (my_device.type == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU)
+			integrated_gpu = &my_device;
+		else if (my_device.type == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+			discrete_gpu = &my_device;
+	}
+
+	if (integrated_gpu.has_value()) {
+		this->device = (*integrated_gpu)->device;
+		if (discrete_gpu.has_value())
+			dprint( "we prefer the integrated GPU instead of the discrete GPU, since our requirement is very low" << std::endl )
+	}
+	else if (discrete_gpu.has_value())
+		this->device = (*discrete_gpu)->device;
+	else
+		throw std::runtime_error("doesn't have an integrated or discrete GPU!");
+
+	//this->device = (*discrete_gpu)->device; // force discrete gpu for testing
 }
 
 void Vulkan::CreateDeviceContext ()
 {
 	SDL_memset(&(this->device_properties), 0, sizeof(VkPhysicalDeviceProperties));
 
-	vkGetPhysicalDeviceProperties(this->device, &(this->device_properties)); //General GPU info
-	vkGetPhysicalDeviceMemoryProperties(this->device, &(this->device_memory_info)); //GPU Memory Info
+	vkGetPhysicalDeviceProperties(this->device, &(this->device_properties));
+	vkGetPhysicalDeviceMemoryProperties(this->device, &(this->device_memory_info));
 
-	dprint("Driver Version: " << this->device_properties.driverVersion)
-	dprint("Device Name: " << this->device_properties.deviceName)
-	dprint("Device Type: " << get_device_type_str(this->device_properties.deviceType))
-	SDL_LogMessage(SDL_LOG_CATEGORY_APPLICATION, SDL_LOG_PRIORITY_INFO, "Vulkan Version: %d. %d. %d\n",
-		(this->device_properties.apiVersion >> 22) & 0x3FF,
-		(this->device_properties.apiVersion >> 12) & 0x3FF,
-		(this->device_properties.apiVersion & 0xFFF));
-	printf("\n");
+	dprint( "Driver Version: " << this->device_properties.driverVersion << std::endl )
+	dprint( "Device Name: " << this->device_properties.deviceName << std::endl )
+	dprint( "Device Type: " << get_device_type_str(this->device_properties.deviceType) << std::endl )
+	dprint( "Vulkan Version: " << ((this->device_properties.apiVersion >> 22) & 0x3FF) << ". "
+							  << ((this->device_properties.apiVersion >> 12) & 0x3FF) << ". "
+							  << (this->device_properties.apiVersion & 0xFFF)
+							  << std::endl )
+	dprint( std::endl )
 
 
 	//Get the Physical GPU Supported Operations
 	uint32_t family_number = 0;
-	vkGetPhysicalDeviceQueueFamilyProperties(device, &family_number, nullptr);
+	vkGetPhysicalDeviceQueueFamilyProperties(this->device, &family_number, nullptr);
 	std::vector<VkQueueFamilyProperties> familyProperties(family_number);
-	vkGetPhysicalDeviceQueueFamilyProperties(device, &family_number, familyProperties.data());
+	vkGetPhysicalDeviceQueueFamilyProperties(this->device, &family_number, familyProperties.data());
 
-	vkGetPhysicalDeviceFeatures(device, &gpu_features);
+	vkGetPhysicalDeviceFeatures(this->device, &(this->gpu_features));
 
 	bool gr = false;
 
@@ -193,10 +262,8 @@ void Vulkan::CreateDeviceContext ()
 			break;
 	}
 
-	if (!gr) {
-		SDL_LogMessage(SDL_LOG_CATEGORY_APPLICATION, SDL_LOG_PRIORITY_ERROR, "Graphics operations not supported");
-	}
-
+	if (!gr)
+		throw std::runtime_error("Graphics operations not supported");
 
 	//Create the Device Context
 	float queuePriorities[] = { 1.0f };
@@ -209,17 +276,16 @@ void Vulkan::CreateDeviceContext ()
 	VkDeviceCreateInfo contextInfo = {};
 	contextInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 	contextInfo.queueCreateInfoCount = 1;
-	contextInfo.enabledExtensionCount = device_extensions.size();
-	contextInfo.ppEnabledExtensionNames = device_extensions.data();
+	contextInfo.enabledExtensionCount = this->device_extensions.size();
+	contextInfo.ppEnabledExtensionNames = this->device_extensions.data();
 	contextInfo.pQueueCreateInfos = &deviceQueueInfo;
 
-	result = vkCreateDevice(device, &contextInfo, nullptr, &device_context);
+	result = vkCreateDevice(this->device, &contextInfo, nullptr, &(this->device_context));
 
-	if (result != VK_SUCCESS) {
-		SDL_LogMessage(SDL_LOG_CATEGORY_APPLICATION, SDL_LOG_PRIORITY_ERROR, "Could not create a Device Context!");
-	}
+	if (result != VK_SUCCESS)
+		throw std::runtime_error("Could not create a Device Context!");
 
-	vkGetDeviceQueue(device_context, family_i, 0, &queue);
+	vkGetDeviceQueue(this->device_context, family_i, 0, &(this->queue));
 }
 
 void Vulkan::DestroyDeviceContext ()
