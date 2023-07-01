@@ -42,6 +42,7 @@ Vulkan::Vulkan (SDL_Window *window, uint32_t screen_width, uint32_t screen_heigh
 
 	this->GetSDLWindowInfo();
 
+	dprint( "InitInstance start" << std::endl );
 	this->InitInstance();
 	dprint( "InitInstance end" << std::endl );
 
@@ -50,20 +51,27 @@ Vulkan::Vulkan (SDL_Window *window, uint32_t screen_width, uint32_t screen_heigh
 	if (!SDL_Vulkan_CreateSurface(this->window, this->instance, &(this->surface)))
 		throw std::runtime_error("failed to create SDL Vulkan surface!");
 
+	dprint( "SelectDevice start" << std::endl );
 	this->SelectDevice();
 	dprint( "SelectDevice end" << std::endl );
 
+	dprint( "CreateDeviceContext start" << std::endl );
 	this->CreateDeviceContext();
 	dprint( "CreateDeviceContext end" << std::endl );
 
+	dprint( "QuerySurface start" << std::endl );
 	this->QuerySurface();
 	dprint( "QuerySurface end" << std::endl );
 
+	dprint( "CreateSwapchain start" << std::endl );
 	this->CreateSwapchain();
 	dprint( "CreateSwapchain end" << std::endl );
 
-#if 0
+	dprint( "CreateSwapchainImages start" << std::endl );
 	this->CreateSwapchainImages();
+	dprint( "CreateSwapchainImages end" << std::endl );
+
+#if 0
 	this->CreateDepthStencilImage();
 	this->CreateRenderPass();
 	this->CreateFramebuffers();
@@ -114,6 +122,13 @@ void Vulkan::DestroySurface ()
 void Vulkan::DestroySwapchain ()
 {
 	vkDestroySwapchainKHR(this->device_context, this->swapchain, nullptr);
+}
+
+void Vulkan::DestroySwapchainImages ()
+{
+	for (auto view : this->swapchain_buffer_view) {
+		vkDestroyImageView(this->device_context, view, nullptr);
+	}
 }
 
 void Vulkan::GetSDLWindowInfo ()
@@ -493,7 +508,7 @@ void Vulkan::QuerySurface ()
 	}
 }
 
-void Vulkan::CreateSwapchain()
+void Vulkan::CreateSwapchain ()
 {
 	//this->swapchain_buffer_count = 2;
 	this->swapchain_buffer_count = this->surface_caps.minImageCount + 1;
@@ -536,22 +551,21 @@ void Vulkan::CreateSwapchain()
 		throw std::runtime_error("failed to create swap chain!");
 }
 
-#if 0
-void Vulkan::CreateSwapchainImages() //Create Buffers for the Swapchain
+void Vulkan::CreateSwapchainImages ()
 {
-	VkResult result = vkGetSwapchainImagesKHR(this->device_context, this->swapchain, &(this->swapchain_buffer_count), nullptr);
+	vkGetSwapchainImagesKHR(this->device_context, this->swapchain, &(this->swapchain_buffer_count), nullptr);
 
-	swapchain_buffers.resize(swapchain_buffer_count);
-	swapchain_buffer_view.resize(swapchain_buffer_count);
+	this->swapchain_buffers.resize(this->swapchain_buffer_count);
+	this->swapchain_buffer_view.resize(this->swapchain_buffer_count);
 
-	result = vkGetSwapchainImagesKHR(device_context, swapchain, &swapchain_buffer_count, swapchain_buffers.data());
+	vkGetSwapchainImagesKHR(this->device_context, this->swapchain, &(this->swapchain_buffer_count), this->swapchain_buffers.data());
 
-	for (uint32_t i = 0; i < swapchain_buffer_count; ++i) {
+	for (uint32_t i = 0; i < this->swapchain_buffer_count; i++) {
 		VkImageViewCreateInfo swapchain_view_info {};
 		swapchain_view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-		swapchain_view_info.image = swapchain_buffers[i];
+		swapchain_view_info.image = this->swapchain_buffers[i];
 		swapchain_view_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
-		swapchain_view_info.format = surface_format.format;
+		swapchain_view_info.format = this->surface_format.format;
 		swapchain_view_info.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
 		swapchain_view_info.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
 		swapchain_view_info.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
@@ -562,18 +576,12 @@ void Vulkan::CreateSwapchainImages() //Create Buffers for the Swapchain
 		swapchain_view_info.subresourceRange.baseArrayLayer = 0;
 		swapchain_view_info.subresourceRange.layerCount = 1;
 
-		result = vkCreateImageView(device_context, &swapchain_view_info, nullptr, &swapchain_buffer_view[i]);
-
+		if (vkCreateImageView(this->device_context, &swapchain_view_info, nullptr, &(this->swapchain_buffer_view[i])) != VK_SUCCESS)
+			throw std::runtime_error("failed to create image views!");
 	}
 }
 
-void Vulkan::DestroySwapchainImages() //Destroy Swapchain Buffers
-{
-	for (auto view : swapchain_buffer_view) {
-		vkDestroyImageView(device_context, view, nullptr);
-	}
-}
-
+#if 0
 void Vulkan::CreateDepthStencilImage() //Create the Depth and Stencil Buffer Attachments for Swapchain Rendering
 {
 	//Check for the format of the Depth/Stencil Buffer

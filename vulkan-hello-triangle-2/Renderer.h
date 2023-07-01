@@ -36,7 +36,6 @@ private:
 
 	VkQueue graphics_queue;
 	VkQueue present_queue;
-
 	QueueFamilyIndices family_indices; //uint32_t family_i;
 
 	VkSurfaceKHR surface; // old window_surface
@@ -47,14 +46,14 @@ private:
 
 	uint32_t swapchain_buffer_count;
 	VkSwapchainKHR swapchain = VK_NULL_HANDLE;
+	std::vector<VkImage> swapchain_buffers;
+	std::vector<VkImageView> swapchain_buffer_view;
 
 	std::vector<const char *> device_extensions;
 	std::vector<const char *> instance_layers;
 	std::vector<const char *> instance_extensions;
 
 #if 0
-	std::vector<VkImage> swapchain_buffers;
-	std::vector<VkImageView> swapchain_buffer_view;
 	uint32_t active_swapchain_id = UINT32_MAX;
 	VkSemaphore present = VK_NULL_HANDLE;
 	VkSemaphore render = VK_NULL_HANDLE;
