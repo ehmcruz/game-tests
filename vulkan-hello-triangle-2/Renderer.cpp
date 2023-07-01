@@ -1,4 +1,7 @@
 #include <set>
+#include <algorithm>
+#include <string_view>
+#include <limits>
 
 #include "Renderer.h"
 
@@ -38,17 +41,28 @@ Vulkan::Vulkan (SDL_Window *window, uint32_t screen_width, uint32_t screen_heigh
 	this->screen_height = screen_height;
 
 	this->GetSDLWindowInfo();
+
 	this->InitInstance();
-	this->ShowAvailableExtensions();
+	dprint( "InitInstance end" << std::endl );
+
+	this->ShowAvailableInstanceExtensions();
 
 	if (!SDL_Vulkan_CreateSurface(this->window, this->instance, &(this->surface)))
 		throw std::runtime_error("failed to create SDL Vulkan surface!");
 
 	this->SelectDevice();
+	dprint( "SelectDevice end" << std::endl );
+
 	this->CreateDeviceContext();
-	this->CreateSurface();
-#if 0
+	dprint( "CreateDeviceContext end" << std::endl );
+
+	this->QuerySurface();
+	dprint( "QuerySurface end" << std::endl );
+
 	this->CreateSwapchain();
+	dprint( "CreateSwapchain end" << std::endl );
+
+#if 0
 	this->CreateSwapchainImages();
 	this->CreateDepthStencilImage();
 	this->CreateRenderPass();
@@ -76,7 +90,7 @@ Vulkan::~Vulkan()
 #endif
 }
 
-void Vulkan::DestroyInstance()
+void Vulkan::DestroyInstance ()
 {
 #ifdef VK_DEBUG
 	DestroyDebug();
@@ -92,9 +106,14 @@ void Vulkan::DestroyDeviceContext ()
 	this->device_context = nullptr;
 }
 
-void Vulkan::DestroySurface()
+void Vulkan::DestroySurface ()
 {
 	vkDestroySurfaceKHR(this->instance, this->surface, nullptr);
+}
+
+void Vulkan::DestroySwapchain ()
+{
+	vkDestroySwapchainKHR(this->device_context, this->swapchain, nullptr);
 }
 
 void Vulkan::GetSDLWindowInfo ()
@@ -149,7 +168,7 @@ void Vulkan::InitInstance ()
 #endif
 }
 
-void Vulkan::ShowAvailableExtensions ()
+void Vulkan::ShowAvailableInstanceExtensions ()
 {
 	uint32_t extensionCount = 0;
 	vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
@@ -211,6 +230,9 @@ void Vulkan::SelectDevice ()
 		
 		if (!indices.present_family.has_value())
 			continue;
+		
+		if (!this->CheckDeviceExtensionSupport(device))
+			continue;
 
 		uint32_t score = 0;
 
@@ -265,6 +287,41 @@ void Vulkan::SelectDevice ()
 		throw std::runtime_error("doesn't have an integrated or discrete GPU!");
 
 	//this->device = (*discrete_gpu)->device; // force discrete gpu for testing
+}
+
+bool Vulkan::CheckDeviceExtensionSupport (VkPhysicalDevice device)
+{
+	uint32_t extensionCount;
+	vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
+
+	std::vector<VkExtensionProperties> availableExtensions(extensionCount);
+	vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, availableExtensions.data());
+
+#if 0
+	dprint( "\t\t" << "Device extensions:" << std::endl )
+
+	for (const auto& extension: availableExtensions) {
+		dprint( "\t\t\t" << extension.extensionName << std::endl )
+	}
+#endif
+
+	bool has_all_extensions = true;
+
+	for (const char *extension: this->device_extensions) {
+		auto it = std::find_if(availableExtensions.begin(), availableExtensions.end(),
+			[extension] (const VkExtensionProperties& x) -> bool {
+				return std::string_view(extension) == std::string_view(x.extensionName);
+			} );
+
+		if (it == availableExtensions.end()) {
+			has_all_extensions = false;
+			break;
+		}
+
+		dprint( "\t\tFound device extension " << extension << std::endl )
+	}
+
+	return has_all_extensions;
 }
 
 Vulkan::QueueFamilyIndices Vulkan::findQueueFamilies (VkPhysicalDevice device)
@@ -366,12 +423,8 @@ void Vulkan::CreateDeviceContext ()
 	vkGetDeviceQueue(this->device_context,  *(this->family_indices.present_family), 0, &(this->present_queue));
 }
 
-// Get the window surface (this process usually is platform specific, but with SDL2 we can have it be platform agnostic)
-
-void Vulkan::CreateSurface ()
+void Vulkan::QuerySurface ()
 {
-	return;
-
 	VkBool32 WSI_supported = false;
 	VkResult result = vkGetPhysicalDeviceSurfaceSupportKHR(this->device, *(this->family_indices.graphics_family), this->surface, &WSI_supported);
 	if (!WSI_supported)
@@ -379,84 +432,115 @@ void Vulkan::CreateSurface ()
 
 	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(this->device, this->surface, &(this->surface_caps));
 
-	if (this->surface_caps.currentExtent.width < UINT32_MAX) {
-		this->screen_width = surface_caps.currentExtent.width;
-		this->screen_height = surface_caps.currentExtent.height;
+	// get actual scren size
+
+	if (this->surface_caps.currentExtent.width != std::numeric_limits<uint32_t>::max())
+		this->extent = this->surface_caps.currentExtent;
+	else {
+		this->extent.width = std::clamp(this->screen_width, this->surface_caps.minImageExtent.width, this->surface_caps.maxImageExtent.width);
+		this->extent.height = std::clamp(this->screen_height, this->surface_caps.minImageExtent.height, this->surface_caps.maxImageExtent.height);
 	}
+
+	dprint( "screen size set to " << this->extent.width << "x" << this->extent.height << std::endl )
+
+	// get supported formats
 
 	uint32_t format_count = 0;
 	vkGetPhysicalDeviceSurfaceFormatsKHR(this->device, this->surface, &format_count, nullptr);
+
 	if (format_count == 0)
-		throw std::runtime_error("Could not get surface informaion for Vulkan Swapchain!");
+		throw std::runtime_error("Could not get surface information for Vulkan Swapchain!");
 
 	std::vector<VkSurfaceFormatKHR> formats(format_count);
 	vkGetPhysicalDeviceSurfaceFormatsKHR(this->device, this->surface, &format_count, formats.data());
 
-	if (formats[0].format == VK_FORMAT_UNDEFINED) {
-		this->surface_format.format = VK_FORMAT_R8G8B8A8_UNORM;
-		this->surface_format.colorSpace = VK_COLORSPACE_SRGB_NONLINEAR_KHR;
+	// get supported vsync modes
+
+	uint32_t presentModeCount;
+	vkGetPhysicalDeviceSurfacePresentModesKHR(this->device, this->surface, &presentModeCount, nullptr);
+
+	if (presentModeCount == 0)
+		throw std::runtime_error("Could not get surface information (pre) for Vulkan Swapchain!");
+	
+	std::vector<VkPresentModeKHR> presentModes(presentModeCount);
+	vkGetPhysicalDeviceSurfacePresentModesKHR(this->device, this->surface, &presentModeCount, presentModes.data());
+
+	// chose format
+
+	std::optional<VkSurfaceFormatKHR> best_format;
+
+	for (const auto& format: formats) {
+		if (format.format == VK_FORMAT_B8G8R8A8_SRGB && format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+			best_format = format;
+			break;
+		}
 	}
-	else {
+
+	if (best_format.has_value())
+		this->surface_format = *best_format;
+	else
 		this->surface_format = formats[0];
+	
+	// chose vsync mode
+
+	this->present_mode = VK_PRESENT_MODE_FIFO_KHR; // default/fallback mode
+
+	for (const auto& mode : presentModes) {
+		if (mode == VK_PRESENT_MODE_MAILBOX_KHR) { // most desiared mode
+			this->present_mode = mode;
+			break;
+		}
 	}
 }
 
-#if 0
-void Vulkan::CreateSwapchain() //Initialize the Swapchain Object
+void Vulkan::CreateSwapchain()
 {
-	if (surface_caps.maxImageCount){
-		if (swapchain_buffer_count > surface_caps.maxImageCount) {
-			swapchain_buffer_count = surface_caps.maxImageCount;
-		}
-		else if (swapchain_buffer_count < surface_caps.minImageCount) {
-			swapchain_buffer_count = surface_caps.minImageCount;
-		}
-	} else swapchain_buffer_count = surface_caps.minImageCount + 1;
+	//this->swapchain_buffer_count = 2;
+	this->swapchain_buffer_count = this->surface_caps.minImageCount + 1;
 
-	 //present mode is essentially the type of vertical syncronization mode.
-	uint32_t present_mode_count = 0;
-	result = vkGetPhysicalDeviceSurfacePresentModesKHR(device, window_surface, &present_mode_count, nullptr);
-	vector<VkPresentModeKHR> swap_modes(present_mode_count);
-	result = vkGetPhysicalDeviceSurfacePresentModesKHR(device, window_surface, &present_mode_count, swap_modes.data());
-	if (!present_mode_set) {
-		present_mode = VK_PRESENT_MODE_FIFO_KHR;
-		for (auto mode : swap_modes) {
-			if (mode == VK_PRESENT_MODE_MAILBOX_KHR) { present_mode = mode; }
-		}
-		present_mode_set = true;
-	}
+	if (this->surface_caps.maxImageCount > 0 && this->swapchain_buffer_count > this->surface_caps.maxImageCount)
+		this->swapchain_buffer_count = this->surface_caps.maxImageCount;
 
 	VkSwapchainCreateInfoKHR swapchain_info {};
 	swapchain_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-	swapchain_info.surface = window_surface;
-	swapchain_info.minImageCount = swapchain_buffer_count;
-	swapchain_info.imageFormat = surface_format.format;
-	swapchain_info.imageColorSpace = surface_format.colorSpace;
-	swapchain_info.imageExtent.width = render_width;
-	swapchain_info.imageExtent.height = render_height;
+	swapchain_info.surface = this->surface;
+	swapchain_info.minImageCount = this->swapchain_buffer_count;
+	swapchain_info.imageFormat = this->surface_format.format;
+	swapchain_info.imageColorSpace = this->surface_format.colorSpace;
+	swapchain_info.imageExtent = this->extent;
 	swapchain_info.imageArrayLayers = 1;
 	swapchain_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-	swapchain_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-	swapchain_info.queueFamilyIndexCount = 0;
-	swapchain_info.pQueueFamilyIndices = nullptr;
-	swapchain_info.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
+
+	if (this->family_indices.graphics_family != this->family_indices.present_family) {
+		uint32_t queueFamilyIndices[] = {
+			*(this->family_indices.graphics_family),
+			*(this->family_indices.present_family)
+		};
+
+		swapchain_info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+		swapchain_info.queueFamilyIndexCount = 2;
+		swapchain_info.pQueueFamilyIndices = queueFamilyIndices;
+	} else {
+		swapchain_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		swapchain_info.queueFamilyIndexCount = 0; // Optional
+		swapchain_info.pQueueFamilyIndices = nullptr; // Optional
+	}
+
+	swapchain_info.preTransform = this->surface_caps.currentTransform; //VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
 	swapchain_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-	swapchain_info.presentMode = present_mode;
+	swapchain_info.presentMode = this->present_mode;
 	swapchain_info.clipped = VK_TRUE;
-	swapchain_info.oldSwapchain = old_swapchain;
+	swapchain_info.oldSwapchain = VK_NULL_HANDLE; //old_swapchain;
 
-	result = vkCreateSwapchainKHR(device_context, &swapchain_info, nullptr, &swapchain);
-
-	result = vkGetSwapchainImagesKHR(device_context, swapchain, &swapchain_buffer_count, nullptr);
+	if (vkCreateSwapchainKHR(this->device_context, &swapchain_info, nullptr, &(this->swapchain)) != VK_SUCCESS)
+		throw std::runtime_error("failed to create swap chain!");
 }
 
-void Vulkan::DestroySwapchain()
-{
-	vkDestroySwapchainKHR(device_context, swapchain, nullptr);
-}
-
+#if 0
 void Vulkan::CreateSwapchainImages() //Create Buffers for the Swapchain
 {
+	VkResult result = vkGetSwapchainImagesKHR(this->device_context, this->swapchain, &(this->swapchain_buffer_count), nullptr);
+
 	swapchain_buffers.resize(swapchain_buffer_count);
 	swapchain_buffer_view.resize(swapchain_buffer_count);
 

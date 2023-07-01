@@ -11,6 +11,8 @@
 #include <array>
 #include <optional>
 
+#include <cstdint>
+
 #define dprint(V) { std::cout << V ; }
 
 class Vulkan
@@ -22,7 +24,7 @@ private:
 	};
 
 	SDL_Window *window;
-	uint32_t screen_width; // old render_width/height
+	uint32_t screen_width;
 	uint32_t screen_height;
 
 	VkInstance instance;
@@ -40,14 +42,17 @@ private:
 	VkSurfaceKHR surface; // old window_surface
 	VkSurfaceCapabilitiesKHR surface_caps {};
 	VkSurfaceFormatKHR surface_format {};
+	VkPresentModeKHR present_mode;
+	VkExtent2D extent;
+
+	uint32_t swapchain_buffer_count;
+	VkSwapchainKHR swapchain = VK_NULL_HANDLE;
 
 	std::vector<const char *> device_extensions;
 	std::vector<const char *> instance_layers;
 	std::vector<const char *> instance_extensions;
 
 #if 0
-	VkSwapchainKHR swapchain = VK_NULL_HANDLE;
-	VkPresentModeKHR present_mode = VK_PRESENT_MODE_IMMEDIATE_KHR;
 	std::vector<VkImage> swapchain_buffers;
 	std::vector<VkImageView> swapchain_buffer_view;
 	uint32_t active_swapchain_id = UINT32_MAX;
@@ -66,12 +71,10 @@ private:
 	VkPipelineLayout pipeline_layout;
 	VkPipeline pipeline;
 
-	VkResult result;
+	//VkResult result;
 	VkSwapchainKHR old_swapchain = nullptr;
-	uint32_t swapchain_buffer_count = 2;
 	VkFormat depth_buffer_format = VK_FORMAT_UNDEFINED;
 	bool stencil_support = false;
-	bool present_mode_set = true;
 
 	VkDebugReportCallbackCreateInfoEXT debug_create_info = {};
 #endif
@@ -90,14 +93,15 @@ private:
 	void InitInstance ();
 	void DestroyInstance ();
 
-	void ShowAvailableExtensions ();
+	void ShowAvailableInstanceExtensions ();
+	bool CheckDeviceExtensionSupport (VkPhysicalDevice device);
 
 	void SelectDevice ();
 	QueueFamilyIndices findQueueFamilies (VkPhysicalDevice device);
 	void CreateDeviceContext ();
 	void DestroyDeviceContext ();
 
-	void CreateSurface ();
+	void QuerySurface ();
 	void DestroySurface ();
 
 	void CreateSwapchain ();
