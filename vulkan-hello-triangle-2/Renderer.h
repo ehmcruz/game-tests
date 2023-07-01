@@ -16,10 +16,36 @@
 class Vulkan
 {
 private:
+	struct QueueFamilyIndices {
+		std::optional<uint32_t> graphics_family;
+		std::optional<uint32_t> present_family;
+	};
+
 	SDL_Window *window;
-	uint32_t screen_width;
+	uint32_t screen_width; // old render_width/height
 	uint32_t screen_height;
 
+	VkInstance instance;
+	VkPhysicalDevice device;
+	VkPhysicalDeviceProperties device_properties {};
+	VkPhysicalDeviceMemoryProperties device_memory_info {};
+	VkPhysicalDeviceFeatures device_features; // old gpu_features
+	VkDevice device_context;
+
+	VkQueue graphics_queue;
+	VkQueue present_queue;
+
+	QueueFamilyIndices family_indices; //uint32_t family_i;
+
+	VkSurfaceKHR surface; // old window_surface
+	VkSurfaceCapabilitiesKHR surface_caps {};
+	VkSurfaceFormatKHR surface_format {};
+
+	std::vector<const char *> device_extensions;
+	std::vector<const char *> instance_layers;
+	std::vector<const char *> instance_extensions;
+
+#if 0
 	VkSwapchainKHR swapchain = VK_NULL_HANDLE;
 	VkPresentModeKHR present_mode = VK_PRESENT_MODE_IMMEDIATE_KHR;
 	std::vector<VkImage> swapchain_buffers;
@@ -35,34 +61,20 @@ private:
 	std::vector<VkFramebuffer> framebuffers;
 	VkViewport viewport = {};
 	VkRect2D scissor = {};
-	VkPhysicalDeviceFeatures gpu_features;
 	VkPipelineRasterizationStateCreateInfo rasterizer = {VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO};
 	VkPipelineMultisampleStateCreateInfo multisampling = { VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO };
 	VkPipelineLayout pipeline_layout;
 	VkPipeline pipeline;
 
 	VkResult result;
-	VkInstance instance;
-	VkSurfaceKHR window_surface;
-	VkDevice device_context;
-	VkQueue queue;
-	uint32_t family_i;
 	VkSwapchainKHR old_swapchain = nullptr;
 	uint32_t swapchain_buffer_count = 2;
-	VkSurfaceCapabilitiesKHR surface_caps {};
 	VkFormat depth_buffer_format = VK_FORMAT_UNDEFINED;
 	bool stencil_support = false;
 	bool present_mode_set = true;
-	VkSurfaceFormatKHR surface_format {};
-	VkPhysicalDevice device;
-	VkPhysicalDeviceProperties device_properties {};
-	VkPhysicalDeviceMemoryProperties device_memory_info {};
-	
-	std::vector<const char *> device_extensions;
-	std::vector<const char *> instance_layers;
-	std::vector<const char *> instance_extensions;
-	
+
 	VkDebugReportCallbackCreateInfoEXT debug_create_info = {};
+#endif
 
 public:
 	Vulkan (SDL_Window *window, uint32_t screen_width, uint32_t screen_height);
@@ -81,10 +93,11 @@ private:
 	void ShowAvailableExtensions ();
 
 	void SelectDevice ();
+	QueueFamilyIndices findQueueFamilies (VkPhysicalDevice device);
 	void CreateDeviceContext ();
 	void DestroyDeviceContext ();
 
-	void CreateSurface (SDL_Window *window);
+	void CreateSurface ();
 	void DestroySurface ();
 
 	void CreateSwapchain ();
@@ -106,6 +119,7 @@ private:
 	void EndSynchronizations ();
 
 	static const char* get_device_type_str (VkPhysicalDeviceType type);
+	static std::string get_family_queues_str (VkQueueFlags flags);
 
 #ifdef VK_DEBUG
 	VkDebugReportCallbackEXT debug_report;

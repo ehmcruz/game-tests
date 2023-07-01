@@ -1,3 +1,5 @@
+#include <set>
+
 #include "Renderer.h"
 
 const char* Vulkan::get_device_type_str (VkPhysicalDeviceType type)
@@ -14,6 +16,20 @@ const char* Vulkan::get_device_type_str (VkPhysicalDeviceType type)
 	return ((type <= VK_PHYSICAL_DEVICE_TYPE_CPU) ? device_type[type] : device_type[5] );
 }
 
+std::string Vulkan::get_family_queues_str (VkQueueFlags flags)
+{
+	std::string str;
+
+	if (flags & VK_QUEUE_GRAPHICS_BIT)
+		str += "graphics,";
+	if (flags & VK_QUEUE_COMPUTE_BIT)
+		str += "compute,";
+	if (flags & VK_QUEUE_TRANSFER_BIT)
+		str += "transfer,";
+
+	return str;
+}
+
 Vulkan::Vulkan (SDL_Window *window, uint32_t screen_width, uint32_t screen_height)
 {
 	//instance_extensions;
@@ -24,10 +40,14 @@ Vulkan::Vulkan (SDL_Window *window, uint32_t screen_width, uint32_t screen_heigh
 	this->GetSDLWindowInfo();
 	this->InitInstance();
 	this->ShowAvailableExtensions();
+
+	if (!SDL_Vulkan_CreateSurface(this->window, this->instance, &(this->surface)))
+		throw std::runtime_error("failed to create SDL Vulkan surface!");
+
 	this->SelectDevice();
 	this->CreateDeviceContext();
-#if 0
 	this->CreateSurface();
+#if 0
 	this->CreateSwapchain();
 	this->CreateSwapchainImages();
 	this->CreateDepthStencilImage();
@@ -54,6 +74,27 @@ Vulkan::~Vulkan()
 	DestroyDeviceContext();
 	DestroyInstance();
 #endif
+}
+
+void Vulkan::DestroyInstance()
+{
+#ifdef VK_DEBUG
+	DestroyDebug();
+#endif  //VK_DEBUG Destroy Debug First
+
+	vkDestroyInstance(this->instance, nullptr);
+	this->instance = nullptr;
+}
+
+void Vulkan::DestroyDeviceContext ()
+{
+	vkDestroyDevice(this->device_context, nullptr);
+	this->device_context = nullptr;
+}
+
+void Vulkan::DestroySurface()
+{
+	vkDestroySurfaceKHR(this->instance, this->surface, nullptr);
 }
 
 void Vulkan::GetSDLWindowInfo ()
@@ -98,7 +139,7 @@ void Vulkan::InitInstance ()
 	InstanceInfo.enabledExtensionCount = this->instance_extensions.size();
 	InstanceInfo.ppEnabledExtensionNames = this->instance_extensions.data();
 	
-	result = vkCreateInstance(&InstanceInfo, nullptr, &(this->instance));
+	VkResult result = vkCreateInstance(&InstanceInfo, nullptr, &(this->instance));
 	if (result != VK_SUCCESS) {
 		throw std::runtime_error("Create Instance Failed");
 	}
@@ -106,16 +147,6 @@ void Vulkan::InitInstance ()
 #ifdef VK_DEBUG
 	InitDebug();
 #endif
-}
-
-void Vulkan::DestroyInstance()
-{
-#ifdef VK_DEBUG
-	DestroyDebug();
-#endif  //VK_DEBUG Destroy Debug First
-
-	vkDestroyInstance(this->instance, nullptr);
-	this->instance = nullptr;
 }
 
 void Vulkan::ShowAvailableExtensions ()
@@ -165,41 +196,49 @@ void Vulkan::SelectDevice ()
 		VkPhysicalDeviceMemoryProperties memoryProperties;
 		vkGetPhysicalDeviceMemoryProperties(device, &memoryProperties);
 
-		bool suitable = ((deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU
-		                  || deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
-		                && deviceFeatures.geometryShader);
+		dprint( '\t' << deviceProperties.deviceName << "(" << get_device_type_str(deviceProperties.deviceType) << ")" << std::endl )
 
-		if (suitable) {
-			uint32_t score = 0;
+		if (deviceProperties.deviceType != VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU
+			&& deviceProperties.deviceType != VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+			continue;
+		else if (!deviceFeatures.geometryShader)
+			continue;
+		
+		QueueFamilyIndices indices = findQueueFamilies(device);
 
-			dprint( '\t' << deviceProperties.deviceName << "(" << get_device_type_str(deviceProperties.deviceType) << ")" << std::endl )
+		if (!indices.graphics_family.has_value())
+			continue;
+		
+		if (!indices.present_family.has_value())
+			continue;
 
-			dprint( "\t\t" << "Memory types: " << std::endl )
-			for (uint32_t i=0; i<memoryProperties.memoryTypeCount; i++)
-				dprint( "\t\t\t" << "heap index: " << memoryProperties.memoryTypes[i].heapIndex
-				                 << " flags: " << memoryProperties.memoryTypes[i].propertyFlags << std::endl )
-			
-			dprint( "\t\t" << "Memory heaps: " << std::endl )
-			for (uint32_t i=0; i<memoryProperties.memoryHeapCount; i++)
-				dprint( "\t\t\t" << "size: " << (memoryProperties.memoryHeaps[i].size / (1024*1024)) << "MB"
-				                 << " flags: " << memoryProperties.memoryHeaps[i].flags << std::endl )
+		uint32_t score = 0;
 
-			switch (deviceProperties.deviceType) {
-				case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
-					score += 500;
-				break;
+		dprint( "\t\t" << "Memory types: " << std::endl )
+		for (uint32_t i=0; i<memoryProperties.memoryTypeCount; i++)
+			dprint( "\t\t\t" << "heap index: " << memoryProperties.memoryTypes[i].heapIndex
+								<< " flags: " << memoryProperties.memoryTypes[i].propertyFlags << std::endl )
+		
+		dprint( "\t\t" << "Memory heaps: " << std::endl )
+		for (uint32_t i=0; i<memoryProperties.memoryHeapCount; i++)
+			dprint( "\t\t\t" << "size: " << (memoryProperties.memoryHeaps[i].size / (1024*1024)) << "MB"
+								<< " flags: " << memoryProperties.memoryHeaps[i].flags << std::endl )
 
-				case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
-					score += 1000;
-				break;
-			}
-			
-			devices_suitable.push_back( MyDevice{
-				.device = device,
-				.type = deviceProperties.deviceType,
-				.score = score
-				} );
+		switch (deviceProperties.deviceType) {
+			case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
+				score += 500;
+			break;
+
+			case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
+				score += 1000;
+			break;
 		}
+		
+		devices_suitable.push_back( MyDevice{
+			.device = device,
+			.type = deviceProperties.deviceType,
+			.score = score
+			} );
 	}
 
 	if (devices_suitable.size() == 0)
@@ -228,6 +267,37 @@ void Vulkan::SelectDevice ()
 	//this->device = (*discrete_gpu)->device; // force discrete gpu for testing
 }
 
+Vulkan::QueueFamilyIndices Vulkan::findQueueFamilies (VkPhysicalDevice device)
+{
+	QueueFamilyIndices indices;
+
+	uint32_t queueFamilyCount = 0;
+	vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
+
+	std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+	vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
+
+	dprint( "\t\t" << "Family queues:" << std::endl )
+
+	uint32_t i = 0;
+	for (const auto& queueFamily: queueFamilies) {
+		dprint( "\t\t\t" << "queue[" << i << "]: " << get_family_queues_str(queueFamily.queueFlags) << std::endl )
+
+		if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
+			indices.graphics_family = i;
+		
+		VkBool32 presentSupport = false;
+		vkGetPhysicalDeviceSurfaceSupportKHR(device, i, this->surface, &presentSupport);
+
+		if (presentSupport)
+			indices.present_family = i;
+
+		i++;
+	}
+
+	return indices;
+}
+
 void Vulkan::CreateDeviceContext ()
 {
 	SDL_memset(&(this->device_properties), 0, sizeof(VkPhysicalDeviceProperties));
@@ -251,88 +321,87 @@ void Vulkan::CreateDeviceContext ()
 	std::vector<VkQueueFamilyProperties> familyProperties(family_number);
 	vkGetPhysicalDeviceQueueFamilyProperties(this->device, &family_number, familyProperties.data());
 
-	vkGetPhysicalDeviceFeatures(this->device, &(this->gpu_features));
+	vkGetPhysicalDeviceFeatures(this->device, &(this->device_features));
 
-	bool gr = false;
+	this->family_indices = this->findQueueFamilies(this->device);
 
-	for (int i = 0; i < family_number; i++) {
-		if (familyProperties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
-			gr = true;
-			family_i = i;
-			break;
-	}
-
-	if (!gr)
-		throw std::runtime_error("Graphics operations not supported");
+	std::set<uint32_t> uniqueQueueFamilies = {
+		*(this->family_indices.graphics_family),
+		*(this->family_indices.present_family)
+		};
 
 	//Create the Device Context
-	float queuePriorities[] = { 1.0f };
-	VkDeviceQueueCreateInfo deviceQueueInfo = {};
-	deviceQueueInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-	deviceQueueInfo.queueFamilyIndex = family_i;
-	deviceQueueInfo.queueCount = 1;
-	deviceQueueInfo.pQueuePriorities = queuePriorities;
+
+	std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
+
+	float queuePriority = 1.0f;
+
+	for (uint32_t queueFamily: uniqueQueueFamilies) {
+		VkDeviceQueueCreateInfo deviceQueueInfo = {};
+
+		deviceQueueInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+		deviceQueueInfo.queueFamilyIndex = queueFamily;
+		deviceQueueInfo.queueCount = 1;
+		deviceQueueInfo.pQueuePriorities = &queuePriority;
+
+		queueCreateInfos.push_back(deviceQueueInfo);
+	}
+
+	//VkPhysicalDeviceFeatures deviceFeatures{};
 
 	VkDeviceCreateInfo contextInfo = {};
 	contextInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-	contextInfo.queueCreateInfoCount = 1;
+	contextInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
+	contextInfo.pQueueCreateInfos = queueCreateInfos.data();
+	//contextInfo.pEnabledFeatures = &deviceFeatures;
 	contextInfo.enabledExtensionCount = this->device_extensions.size();
 	contextInfo.ppEnabledExtensionNames = this->device_extensions.data();
-	contextInfo.pQueueCreateInfos = &deviceQueueInfo;
 
-	result = vkCreateDevice(this->device, &contextInfo, nullptr, &(this->device_context));
+	VkResult result = vkCreateDevice(this->device, &contextInfo, nullptr, &(this->device_context));
 
 	if (result != VK_SUCCESS)
 		throw std::runtime_error("Could not create a Device Context!");
 
-	vkGetDeviceQueue(this->device_context, family_i, 0, &(this->queue));
+	vkGetDeviceQueue(this->device_context, *(this->family_indices.graphics_family), 0, &(this->graphics_queue));
+	vkGetDeviceQueue(this->device_context,  *(this->family_indices.present_family), 0, &(this->present_queue));
 }
 
-void Vulkan::DestroyDeviceContext ()
+// Get the window surface (this process usually is platform specific, but with SDL2 we can have it be platform agnostic)
+
+void Vulkan::CreateSurface ()
 {
-
-	vkDestroyDevice(device_context, nullptr);
-	device_context = nullptr;
-}
-
-#if 0
-
-void Vulkan::CreateSurface(SDL_Window * window) //Get the window surface (this process usually is platform specific, but with SDL2 we can have it be platform agnostic)
-{
-	SDL_Vulkan_CreateSurface(window, instance, &window_surface);
+	return;
 
 	VkBool32 WSI_supported = false;
-	result = vkGetPhysicalDeviceSurfaceSupportKHR(device, family_i, window_surface, &WSI_supported);
-	if (!WSI_supported) {
-		SDL_LogMessage(SDL_LOG_CATEGORY_APPLICATION, SDL_LOG_PRIORITY_ERROR, "Could not not create window surface for Vulkan!");
-	}
+	VkResult result = vkGetPhysicalDeviceSurfaceSupportKHR(this->device, *(this->family_indices.graphics_family), this->surface, &WSI_supported);
+	if (!WSI_supported)
+		throw std::runtime_error("Could not not create window surface for Vulkan!");
 
-	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, window_surface, &surface_caps);
+	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(this->device, this->surface, &(this->surface_caps));
 
-	if (surface_caps.currentExtent.width < UINT32_MAX) {
-		render_width = surface_caps.currentExtent.width;
-		render_height = surface_caps.currentExtent.height;
+	if (this->surface_caps.currentExtent.width < UINT32_MAX) {
+		this->screen_width = surface_caps.currentExtent.width;
+		this->screen_height = surface_caps.currentExtent.height;
 	}
 
 	uint32_t format_count = 0;
-	vkGetPhysicalDeviceSurfaceFormatsKHR(device, window_surface, &format_count, nullptr);
-	if (format_count == 0) {
-		SDL_LogMessage(SDL_LOG_CATEGORY_APPLICATION, SDL_LOG_PRIORITY_ERROR, "Could not get surface informaion for Vulkan Swapchain!");
-	}
-	vector<VkSurfaceFormatKHR> formats(format_count);
-	vkGetPhysicalDeviceSurfaceFormatsKHR(device, window_surface, &format_count, formats.data());
+	vkGetPhysicalDeviceSurfaceFormatsKHR(this->device, this->surface, &format_count, nullptr);
+	if (format_count == 0)
+		throw std::runtime_error("Could not get surface informaion for Vulkan Swapchain!");
+
+	std::vector<VkSurfaceFormatKHR> formats(format_count);
+	vkGetPhysicalDeviceSurfaceFormatsKHR(this->device, this->surface, &format_count, formats.data());
+
 	if (formats[0].format == VK_FORMAT_UNDEFINED) {
-		surface_format.format = VK_FORMAT_R8G8B8A8_UNORM;
-		surface_format.colorSpace = VK_COLORSPACE_SRGB_NONLINEAR_KHR;
-	} else { surface_format = formats[0]; }
-
+		this->surface_format.format = VK_FORMAT_R8G8B8A8_UNORM;
+		this->surface_format.colorSpace = VK_COLORSPACE_SRGB_NONLINEAR_KHR;
+	}
+	else {
+		this->surface_format = formats[0];
+	}
 }
 
-void Vulkan::DestroySurface()
-{
-	vkDestroySurfaceKHR(instance, window_surface, nullptr);
-}
-
+#if 0
 void Vulkan::CreateSwapchain() //Initialize the Swapchain Object
 {
 	if (surface_caps.maxImageCount){
