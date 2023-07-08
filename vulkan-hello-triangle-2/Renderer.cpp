@@ -71,9 +71,12 @@ Vulkan::Vulkan (SDL_Window *window, uint32_t screen_width, uint32_t screen_heigh
 	this->CreateSwapchainImages();
 	dprint( "CreateSwapchainImages end" << std::endl );
 
+	dprint( "CreateRenderPass start" << std::endl );
+	this->CreateRenderPass();
+	dprint( "CreateRenderPass end" << std::endl );
+
 #if 0
 	this->CreateDepthStencilImage();
-	this->CreateRenderPass();
 	this->CreateFramebuffers();
 
 	this->StartSynchronizations();
@@ -129,6 +132,11 @@ void Vulkan::DestroySwapchainImages ()
 	for (auto view : this->swapchain_buffer_view) {
 		vkDestroyImageView(this->device_context, view, nullptr);
 	}
+}
+
+void Vulkan::DestroyRenderPass()
+{
+	vkDestroyRenderPass(this->device_context, this->render_pass, nullptr);
 }
 
 void Vulkan::GetSDLWindowInfo ()
@@ -675,32 +683,36 @@ void Vulkan::DestroyDepthStencilImage()
 	vkFreeMemory(device_context, depth_stencil_buffer_memory, nullptr);
 	vkDestroyImage(device_context, depth_stencil_buffer, nullptr);
 }
+#endif
 
-void Vulkan::CreateRenderPass() //Create the Render Pass Object, which is essentially used for the order of rendering (i.e forward or deferred)
+void Vulkan::CreateRenderPass ()
 {
-	array<VkAttachmentDescription, 2> attachments {};
-	{
-		//attachments
-		attachments[0].flags = 0;
-		attachments[0].format = depth_buffer_format;
-		attachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
-		attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-		attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		attachments[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-		attachments[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
-		attachments[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		attachments[0].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+	//VkFormat depth_buffer_format = VK_FORMAT_UNDEFINED;
 
-		attachments[1].flags = 0;
-		attachments[1].format = surface_format.format;
-		attachments[1].samples = VK_SAMPLE_COUNT_1_BIT;
-		attachments[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-		attachments[1].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-		attachments[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		attachments[1].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-		//extra attachments
-		//~extra attachments
-	}
+	std::array<VkAttachmentDescription, 2> attachments {};
+
+/*	attachments[0].flags = 0;
+	attachments[0].format = depth_buffer_format;
+	attachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
+	attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	attachments[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	attachments[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
+	attachments[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	attachments[0].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+	*/
+
+	attachments[1].flags = 0;
+	attachments[1].format = this->surface_format.format;
+	attachments[1].samples = VK_SAMPLE_COUNT_1_BIT;
+	attachments[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	attachments[1].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+	attachments[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	attachments[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	attachments[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	attachments[1].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+	// create subpasses
 
 	VkAttachmentReference sub_pass_depth_attachment {};
 	sub_pass_depth_attachment.attachment = 0;
@@ -742,11 +754,7 @@ void Vulkan::CreateRenderPass() //Create the Render Pass Object, which is essent
 	result = vkCreateRenderPass(device_context, &render_pass_info, nullptr, &render_pass);
 }
 
-void Vulkan::DestroyRenderPass()
-{
-	vkDestroyRenderPass(device_context, render_pass, nullptr);
-}
-
+#if 0
 void Vulkan::CreateFramebuffers() //create the framebuffers (which bind the image attachments to the renderpass)
 {
 	framebuffers.resize(swapchain_buffer_count);

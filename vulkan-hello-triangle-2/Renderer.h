@@ -17,6 +17,9 @@
 
 class Vulkan
 {
+	friend class VulkanShader;
+	friend class VulkanPipeline;
+
 private:
 	struct QueueFamilyIndices {
 		std::optional<uint32_t> graphics_family;
@@ -49,6 +52,8 @@ private:
 	std::vector<VkImage> swapchain_buffers;
 	std::vector<VkImageView> swapchain_buffer_view;
 
+	VkRenderPass render_pass = VK_NULL_HANDLE;
+
 	std::vector<const char *> device_extensions;
 	std::vector<const char *> instance_layers;
 	std::vector<const char *> instance_extensions;
@@ -61,7 +66,6 @@ private:
 	VkImage depth_stencil_buffer = VK_NULL_HANDLE;
 	VkDeviceMemory depth_stencil_buffer_memory = VK_NULL_HANDLE;
 	VkImageView depth_stencil_buffer_view = VK_NULL_HANDLE;
-	VkRenderPass render_pass = VK_NULL_HANDLE;
 	std::vector<VkFramebuffer> framebuffers;
 	VkViewport viewport = {};
 	VkRect2D scissor = {};

@@ -1,4 +1,5 @@
 #include "Renderer.h"
+#include "pipeline.h"
 #include "Helper.h"
 #include <cmath>
 
@@ -29,6 +30,7 @@ int main(int argc, char** argv) // Equivalent to WinMain, this initializes SDL2
 	}
 
 	Vulkan renderer(window, WIDTH, HEIGHT);    //  vulkan renderer handle
+	VulkanPipeline pipeline(renderer);
 
 #if 0
 	//Variables
