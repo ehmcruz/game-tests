@@ -26,6 +26,13 @@ private:
 		std::optional<uint32_t> present_family;
 	};
 
+public:
+	inline uint32_t get_graphics_family ()
+	{
+		return *(this->family_indices.graphics_family);
+	}
+
+public:
 	SDL_Window *window;
 	uint32_t screen_width;
 	uint32_t screen_height;
@@ -45,34 +52,32 @@ private:
 	VkSurfaceCapabilitiesKHR surface_caps {};
 	VkSurfaceFormatKHR surface_format {};
 	VkPresentModeKHR present_mode;
-	VkExtent2D extent;
+	VkExtent2D extent; // render dimensions
 
 	uint32_t swapchain_buffer_count;
 	VkSwapchainKHR swapchain = VK_NULL_HANDLE;
 	std::vector<VkImage> swapchain_buffers;
 	std::vector<VkImageView> swapchain_buffer_view;
 
+	uint32_t active_swapchain_id = std::numeric_limits<uint32_t>::max();
+
 	VkRenderPass render_pass = VK_NULL_HANDLE;
+
+	std::vector<VkFramebuffer> framebuffers;
+
+	VkSemaphore sem_present; // image available semaphore
+	VkSemaphore sem_render;
+	VkFence in_flight_fence;
 
 	std::vector<const char *> device_extensions;
 	std::vector<const char *> instance_layers;
 	std::vector<const char *> instance_extensions;
 
 #if 0
-	uint32_t active_swapchain_id = UINT32_MAX;
-	VkSemaphore present = VK_NULL_HANDLE;
-	VkSemaphore render = VK_NULL_HANDLE;
 	std::vector<VkFence> swapchain_available;
 	VkImage depth_stencil_buffer = VK_NULL_HANDLE;
 	VkDeviceMemory depth_stencil_buffer_memory = VK_NULL_HANDLE;
 	VkImageView depth_stencil_buffer_view = VK_NULL_HANDLE;
-	std::vector<VkFramebuffer> framebuffers;
-	VkViewport viewport = {};
-	VkRect2D scissor = {};
-	VkPipelineRasterizationStateCreateInfo rasterizer = {VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO};
-	VkPipelineMultisampleStateCreateInfo multisampling = { VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO };
-	VkPipelineLayout pipeline_layout;
-	VkPipeline pipeline;
 
 	//VkResult result;
 	VkSwapchainKHR old_swapchain = nullptr;
@@ -88,7 +93,7 @@ public:
 
 	//Rendering Functions (you can do all this stuff manually in your game loop using the public variables available)
 	void AcquireNextSwapchain ();
-	void BeginRenderPresent (std::vector<VkCommandBuffer> command_buffers);
+	void BeginRenderPresent (VkCommandBuffer& command_buffer);
 	//~Rendering Functions
 
 private:

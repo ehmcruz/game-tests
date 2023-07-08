@@ -22,11 +22,12 @@ public:
 
 class VulkanPipeline
 {
-private:
+public:
 	Vulkan& renderer;
 	VulkanShader vertex_shader;
 	VulkanShader frag_shader;
 	VkPipelineLayout pipeline_layout;
+	VkPipeline graphics_pipeline;
 
 public:
 	VulkanPipeline (Vulkan& renderer_);

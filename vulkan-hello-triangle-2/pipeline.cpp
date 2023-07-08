@@ -189,10 +189,41 @@ VulkanPipeline::VulkanPipeline (Vulkan& renderer_)
 		throw std::runtime_error("failed to create pipeline layout!");
 	}
 
+	// create graphics pipeline
+
+	VkGraphicsPipelineCreateInfo pipelineInfo{};
+	pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+	pipelineInfo.stageCount = 2;
+	pipelineInfo.pStages = shaderStages;
+
+	pipelineInfo.pVertexInputState = &vertexInputInfo;
+	pipelineInfo.pInputAssemblyState = &inputAssembly;
+	pipelineInfo.pViewportState = &viewportState;
+	pipelineInfo.pRasterizationState = &rasterizer;
+	pipelineInfo.pMultisampleState = &multisampling;
+	pipelineInfo.pDepthStencilState = nullptr; // Optional
+	pipelineInfo.pColorBlendState = &colorBlending;
+	pipelineInfo.pDynamicState = &dynamicState;
+
+	pipelineInfo.layout = this->pipeline_layout;
+
+	pipelineInfo.renderPass = this->renderer.render_pass;
+	pipelineInfo.subpass = 0; // index of the sub pass where this graphics pipeline will be used
+
+	pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; // Optional
+	pipelineInfo.basePipelineIndex = -1; // Optional
+
+	if (vkCreateGraphicsPipelines(this->renderer.device_context, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &this->graphics_pipeline) != VK_SUCCESS)
+		throw std::runtime_error("failed to create graphics pipeline!");
+
+	//vkDestroyShaderModule(renderer.device_context, vertex_shader, nullptr);
+	//vkDestroyShaderModule(renderer.device_context, frag_shader, nullptr);
+
 	dprint( "graphics pipeline created" << std::endl )
 }
 
 VulkanPipeline::~VulkanPipeline ()
 {
+	vkDestroyPipeline(this->renderer.device_context, this->graphics_pipeline, nullptr);
 	vkDestroyPipelineLayout(this->renderer.device_context, this->pipeline_layout, nullptr);
 }
