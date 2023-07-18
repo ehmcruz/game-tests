@@ -30,6 +30,11 @@ texture-array: texture-array.cpp
 	echo `sdl2-config --libs`
 	g++ -o texture-array.exe texture-array.cpp `sdl2-config --cflags` `sdl2-config --libs` -lSDL2_image -mconsole -lglew32 -lopengl32 -ggdb
 
+circle-vs-2-linux: circle-vs-2.cpp
+	echo `sdl2-config --cflags`
+	echo `sdl2-config --libs`
+	g++ -o circle-vs-2 circle-vs-2.cpp `sdl2-config --cflags` `sdl2-config --libs` -lGL -lGLEW -lm -ggdb
+
 circle-vs: circle-vs.cpp
 	echo `sdl2-config --cflags`
 	echo `sdl2-config --libs`
