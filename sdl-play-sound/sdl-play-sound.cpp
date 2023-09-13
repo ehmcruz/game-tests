@@ -57,6 +57,13 @@ int main (int argc, char **argv)
 	//double loop_start, loop_end, loop_length, current_position;
 	double current_position;
 
+	if (argc != 3) {
+		cout << argv[0] << " [mp3 file] [wav file]" << endl;
+		cout << "mp3 file for background music" << endl;
+		cout << "wav file for sound effects" << endl;
+		exit(1);
+	}
+
 	audio_rate = 44100; //MIX_DEFAULT_FREQUENCY;
 	audio_format = MIX_DEFAULT_FORMAT;
 	audio_channels = 2; //MIX_DEFAULT_CHANNELS;
