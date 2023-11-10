@@ -17,7 +17,7 @@ SDL_PATH := /home/ehmcruz/Android/SDL/SDL-release-2.28.5
 LOCAL_C_INCLUDES := $(SDL_PATH)/include
 
 # Add your application source files here...
-LOCAL_SRC_FILES := $(LOCAL_PATH)/test.cpp
+LOCAL_SRC_FILES := $(LOCAL_PATH)/hello.cpp
 
 LOCAL_SHARED_LIBRARIES := SDL2
 
