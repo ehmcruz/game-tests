@@ -38,7 +38,7 @@ int main(int argc, char* args[]) {
 
 SDL_Rect r;
     r.x = 100 + n;
-    r.y = 300;
+    r.y = 300 + n;
     r.w = 200;
     r.h = 200;
 
