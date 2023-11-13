@@ -2,9 +2,7 @@ apply plugin: 'com.android.application'
 //apply plugin: 'com.android.library'
 
 android {
-	if (buildAsApplication) {
-		namespace "org.libsdl.app"
-	}
+	namespace "org.libsdl.app"
 /*
 	sourceSets {
 		//noinspection GroovyAssignabilityCheck
@@ -60,9 +58,9 @@ android {
 			version "3.22.1"
 		}
 	}
-/*	lint {
+	lint {
 		abortOnError false
-	}*/
+	}
 }
 
 dependencies {

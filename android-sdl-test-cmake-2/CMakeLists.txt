@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.22.1)
 
 set(CMAKE_VERBOSE_MAKEFILE ON)
 
-#project(app_cruz)
+project(app_test)
 
 # armeabi-v7a requires cpufeatures library
 # include(AndroidNdkModules)
